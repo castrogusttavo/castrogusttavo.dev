@@ -10,6 +10,18 @@ O post de referência para tudo aqui é
 `content/writing/en/cluster-lpa2v-appsec.md`). Quando um item abaixo estiver
 vago, olhe como ele foi resolvido lá.
 
+## Pilares de conteúdo
+
+O blog tem três pilares, nesta ordem de prioridade:
+
+1. **Arquitetura** — o pilar principal. É onde entram o maior volume e o maior
+   cuidado de escrita.
+2. **Engenharia** — práticas, decisões e trade-offs de implementação.
+3. **Algoritmos** — pesquisa/projetos aplicados (ex.: LPA2v).
+
+Fora desses três, cabem artigos técnicos pontuais sobre temas específicos que
+surgirem no dia a dia — mas eles não são o foco recorrente do blog.
+
 ## Tipos de post e o tom de cada um
 
 O tom **não é único** — varia por tipo de post. Antes de escrever, identifique
