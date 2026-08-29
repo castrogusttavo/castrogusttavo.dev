@@ -110,6 +110,29 @@ export function WritingProse({ content }: { content: string }) {
         {children}
       </blockquote>
     ),
+    table: ({ children }) => (
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-full border-b border-zinc-200 text-sm tabular-nums dark:border-zinc-800">
+          {children}
+        </table>
+      </div>
+    ),
+    th: ({ children, style }) => (
+      <th
+        style={style}
+        className="px-4 py-2.5 text-left align-bottom font-medium whitespace-nowrap text-zinc-500 first:pl-0 dark:text-zinc-400"
+      >
+        {children}
+      </th>
+    ),
+    td: ({ children, style }) => (
+      <td
+        style={style}
+        className="border-t border-zinc-200 px-4 py-3 align-top text-zinc-700 first:pl-0 dark:border-zinc-800 dark:text-zinc-300"
+      >
+        {children}
+      </td>
+    ),
     img: ({ src, alt }) =>
       typeof src === "string" ? (
         <WritingImage src={src} alt={alt ?? ""} />
