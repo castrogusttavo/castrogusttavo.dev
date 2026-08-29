@@ -3,6 +3,7 @@ import ArrowLeft02Icon from "@hugeicons-pro/core-bulk-rounded/ArrowLeft02Icon";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 import { WritingList } from "@/components/writing-list";
 import { getDictionary } from "@/lib/dictionaries";
 import { isLocale, LOCALES, type Locale } from "@/lib/locale";
@@ -52,7 +53,10 @@ export default async function WritingIndex({
           <HugeiconsIcon icon={ArrowLeft02Icon} size={16} strokeWidth={2} />
         </Link>
 
-        <h1 className="text-2xl font-normal">{dict.writing.heading}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-normal">{dict.writing.heading}</h1>
+          <Badge variant="outline">{posts.length}</Badge>
+        </div>
 
         <hr className="border-zinc-200 dark:border-zinc-800" />
 
