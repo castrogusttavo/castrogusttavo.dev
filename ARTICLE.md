@@ -12,7 +12,7 @@ vago, olhe como ele foi resolvido lá.
 
 ## Pilares de conteúdo
 
-O blog tem três pilares, nesta ordem de prioridade:
+O blog tem três pilares técnicos, nesta ordem de prioridade:
 
 1. **Arquitetura** — o pilar principal. É onde entram o maior volume e o maior
    cuidado de escrita.
@@ -21,6 +21,13 @@ O blog tem três pilares, nesta ordem de prioridade:
 
 Fora desses três, cabem artigos técnicos pontuais sobre temas específicos que
 surgirem no dia a dia — mas eles não são o foco recorrente do blog.
+
+Além dos três, existe uma categoria pessoal — vida, vida de startupeiro,
+livros, reflexão no estilo "vida, verdade e o universo" (ex.: o post sobre
+Hábitos Atômicos, ou o de custos jurídicos/financeiros de abrir a Nexo,
+`cost-of-founding-a-software-startup`). Não compete em prioridade com os
+pilares técnicos nem precisa ser pontual como os artigos avulsos — é espaço
+reconhecido do blog, não uma exceção.
 
 ## Tipos de post e o tom de cada um
 
@@ -37,9 +44,10 @@ qual destes é:
   um caso em que a abordagem falha, isso entra como aviso pontual, não como
   seção separada.
 - **Opinião/reflexão** — argumentativo, sobre um tema (carreira, ferramentas,
-  indústria), sem necessariamente ter um projeto por trás. Primeira pessoa,
-  pode ser mais solto estruturalmente, mas ainda precisa de uma tese clara,
-  não só impressões soltas.
+  indústria, vida pessoal, livros), sem necessariamente ter um projeto por
+  trás. Primeira pessoa, pode ser mais solto estruturalmente, mas ainda
+  precisa de uma tese clara, não só impressões soltas. É o tom padrão pra
+  posts da categoria pessoal.
 - **Nota rápida/TIL** — curto, registra algo que você aprendeu ou resolveu.
   Sem gancho elaborado, sem estrutura de seções — vai direto ao ponto e
   termina quando a ideia acaba.
