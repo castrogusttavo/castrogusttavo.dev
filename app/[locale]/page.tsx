@@ -16,7 +16,7 @@ import {
   ToggleSeparator,
 } from "@/components/toggles";
 import { WorkExperienceEntry } from "@/components/work-experience";
-import { WritingPostMeta } from "@/components/writing-post-meta";
+import { WritingList } from "@/components/writing-list";
 import { getDictionary } from "@/lib/dictionaries";
 import { getCachedContributions } from "@/lib/get-cached-contributions";
 import { getPinnedRepos, getSocialAccounts } from "@/lib/github-service";
@@ -30,7 +30,9 @@ import {
   workExperience,
 } from "@/lib/profile";
 import { getAllWritingPosts } from "@/lib/writing";
-import { resolveWritingIcon } from "@/lib/writing-icons";
+
+/** Home shows a teaser, not the archive — the rest lives at `/writing`. */
+const RECENT_WRITING_COUNT = 5;
 
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
@@ -269,29 +271,18 @@ export default async function Home({
               {dict.writing.heading}
             </h2>
             <hr className="border border-zinc-200 dark:border-zinc-800" />
-            <div className="flex flex-col gap-2 group">
-              {writingPosts.map((post) => (
-                <Link
-                  key={post.slug}
-                  href={`/${locale}/writing/${post.slug}`}
-                  className="flex items-center gap-3 rounded-lg p-2 -mx-2 opacity-100 transition duration-200 hover:bg-zinc-50 group-has-[a:hover]:opacity-40 hover:opacity-100! dark:hover:bg-zinc-900"
-                >
-                  <div className="bg-primary-foreground border border-border size-9 flex items-center justify-center rounded-lg group-hover:scale-[1.06]">
-                    <HugeiconsIcon
-                      icon={resolveWritingIcon(post.frontmatter.icon)}
-                      size={20}
-                      className="mt-1 shrink-0 text-zinc-500"
-                    />
-                  </div>
-                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                    <WritingPostMeta
-                      title={post.frontmatter.title}
-                      description={post.frontmatter.description}
-                    />
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <WritingList
+              posts={writingPosts.slice(0, RECENT_WRITING_COUNT)}
+              locale={locale}
+            />
+            {writingPosts.length > RECENT_WRITING_COUNT && (
+              <Link
+                href={`/${locale}/writing`}
+                className="self-start text-sm text-zinc-500 underline hover:text-zinc-950 dark:hover:text-zinc-50"
+              >
+                {dict.writing.readMore}
+              </Link>
+            )}
           </>
         )}
 
