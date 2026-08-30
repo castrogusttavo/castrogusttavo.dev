@@ -78,3 +78,22 @@ export function getAllWritingPosts(locale: Locale): WritingPost[] {
       (b.frontmatter.date ?? "").localeCompare(a.frontmatter.date ?? ""),
     );
 }
+
+/**
+ * Hand-picked, in display order — not "most recent," not "most read" (no
+ * analytics pipeline for that yet). Edit this array to change what the home
+ * page features; the full archive at `/writing` is unaffected.
+ */
+export const FEATURED_WRITING_SLUGS: string[] = [
+  "background-jobs-with-bullmq",
+  "errors-as-values",
+  "read-through-cache-with-redis",
+  "cost-of-founding-a-software-startup",
+  "tiptap-to-platejs",
+];
+
+export function getFeaturedWritingPosts(locale: Locale): WritingPost[] {
+  return FEATURED_WRITING_SLUGS.map((slug) =>
+    getWritingPost(locale, slug),
+  ).filter((post): post is WritingPost => post !== null);
+}

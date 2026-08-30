@@ -29,10 +29,7 @@ import {
   photos,
   workExperience,
 } from "@/lib/profile";
-import { getAllWritingPosts } from "@/lib/writing";
-
-/** Home shows a teaser, not the archive — the rest lives at `/writing`. */
-const RECENT_WRITING_COUNT = 5;
+import { getAllWritingPosts, getFeaturedWritingPosts } from "@/lib/writing";
 
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
@@ -103,6 +100,7 @@ export default async function Home({
   const social = await getSocialAccounts(user.login);
   const featuredRepos = await getPinnedRepos(user.login);
   const writingPosts = getAllWritingPosts(locale);
+  const featuredWritingPosts = getFeaturedWritingPosts(locale);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -271,11 +269,8 @@ export default async function Home({
               {dict.writing.heading}
             </h2>
             <hr className="border border-zinc-200 dark:border-zinc-800" />
-            <WritingList
-              posts={writingPosts.slice(0, RECENT_WRITING_COUNT)}
-              locale={locale}
-            />
-            {writingPosts.length > RECENT_WRITING_COUNT && (
+            <WritingList posts={featuredWritingPosts} locale={locale} />
+            {writingPosts.length > featuredWritingPosts.length && (
               <Link
                 href={`/${locale}/writing`}
                 className="self-start text-sm text-zinc-500 underline hover:text-zinc-950 dark:hover:text-zinc-50"
