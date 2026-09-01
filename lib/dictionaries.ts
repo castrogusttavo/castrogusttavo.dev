@@ -12,6 +12,15 @@ export type Dictionary = {
   repoLinks: { site: string; source: string };
   workedAt: string;
   hero: { bookCall: string; messageOnX: string };
+  contributions: {
+    graphTitle: string;
+    tooltipOne: string;
+    tooltipOther: string;
+    footerPrefix: string;
+    months: string[];
+    legend: { less: string; more: string };
+  };
+  meta: { fallbackDescription: string };
   experience: { showMore: string; showLess: string };
   education: string;
   elsewhere: string;
@@ -40,6 +49,28 @@ const pt: Dictionary = {
   repoLinks: { site: "site", source: "código" },
   workedAt: "por onde já passei",
   hero: { bookCall: "agendar uma call", messageOnX: "mensagem no X" },
+  contributions: {
+    graphTitle: "Contribuições no GitHub",
+    tooltipOne: "{{count}} contribuição em {{date}}",
+    tooltipOther: "{{count}} contribuições em {{date}}",
+    footerPrefix: "{{count}} contribuições no último ano no",
+    months: [
+      "Jan",
+      "Fev",
+      "Mar",
+      "Abr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Set",
+      "Out",
+      "Nov",
+      "Dez",
+    ],
+    legend: { less: "Menos", more: "Mais" },
+  },
+  meta: { fallbackDescription: "portfólio de desenvolvedor de {{name}}." },
   experience: { showMore: "ver mais", showLess: "ver menos" },
   education: "formação",
   elsewhere: "por aí",
@@ -66,6 +97,28 @@ const en: Dictionary = {
   repoLinks: { site: "site", source: "source" },
   workedAt: "places i worked at",
   hero: { bookCall: "Book a call", messageOnX: "Message on X" },
+  contributions: {
+    graphTitle: "GitHub Contributions",
+    tooltipOne: "{{count}} contribution on {{date}}",
+    tooltipOther: "{{count}} contributions on {{date}}",
+    footerPrefix: "{{count}} contributions in last year on",
+    months: [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ],
+    legend: { less: "Less", more: "More" },
+  },
+  meta: { fallbackDescription: "{{name}}'s developer portfolio." },
   experience: { showMore: "show more", showLess: "show less" },
   education: "education",
   elsewhere: "elsewhere",

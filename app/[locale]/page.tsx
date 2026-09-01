@@ -50,6 +50,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
+  const dict = getDictionary(locale);
 
   const res = await fetch(`https://api.github.com/users/${GITHUB_USERNAME}`, {
     headers: { Accept: "application/vnd.github+json" },
@@ -64,7 +65,7 @@ export async function generateMetadata({
   const name = user.name ?? GITHUB_USERNAME;
   const desc = user.bio
     ? truncate(user.bio, 160)
-    : `${name}'s developer portfolio.`;
+    : dict.meta.fallbackDescription.replace("{{name}}", name);
 
   return {
     title: `${name} (@${GITHUB_USERNAME})`,
@@ -186,6 +187,8 @@ export default async function Home({
             <GitHubContributions
               contributions={contributions}
               githubProfileUrl={`https://github.com/${user.login}`}
+              locale={locale}
+              dict={dict}
             />
           </Suspense>
         </div>

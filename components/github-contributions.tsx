@@ -17,15 +17,21 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { Dictionary } from "@/lib/dictionaries";
+import type { Locale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
 export function GitHubContributions({
   contributions,
   githubProfileUrl,
+  locale,
+  dict,
   className,
 }: {
   contributions: Promise<Activity[]>;
   githubProfileUrl: string;
+  locale: Locale;
+  dict: Dictionary;
   className?: string;
 }) {
   const data = use(contributions);
@@ -37,10 +43,14 @@ export function GitHubContributions({
       blockSize={11}
       blockMargin={3}
       blockRadius={2}
+      labels={{
+        months: dict.contributions.months,
+        legend: dict.contributions.legend,
+      }}
     >
       <ContributionGraphCalendar
         className="no-scrollbar px-2"
-        title="GitHub Contributions"
+        title={dict.contributions.graphTitle}
       >
         {({ activity, dayIndex, weekIndex }) => (
           <Tooltip>
@@ -53,9 +63,15 @@ export function GitHubContributions({
             </TooltipTrigger>
             <TooltipContent className="font-sans">
               <p>
-                {activity.count} contribution
-                {activity.count > 1 ? "s" : null} on{" "}
-                {format(new Date(activity.date), "dd.MM.yyyy")}
+                {(activity.count === 1
+                  ? dict.contributions.tooltipOne
+                  : dict.contributions.tooltipOther
+                )
+                  .replace("{{count}}", String(activity.count))
+                  .replace(
+                    "{{date}}",
+                    format(new Date(activity.date), "dd.MM.yyyy"),
+                  )}
               </p>
             </TooltipContent>
           </Tooltip>
@@ -66,9 +82,12 @@ export function GitHubContributions({
         <ContributionGraphTotalCount>
           {({ totalCount }) => (
             <div className="text-zinc-500">
-              {totalCount.toLocaleString("en")} contributions in last year on{" "}
+              {dict.contributions.footerPrefix.replace(
+                "{{count}}",
+                totalCount.toLocaleString(locale === "pt" ? "pt-BR" : "en"),
+              )}{" "}
               <a
-                className="text-zinc-950 underline"
+                className="text-zinc-800 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-zinc-400 underline"
                 href={githubProfileUrl}
                 target="_blank"
                 rel="noopener"
