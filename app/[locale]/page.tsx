@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from "@hugeicons/react";
-import { NewReleasesIcon, StarIcon } from "@hugeicons-pro/core-solid-rounded";
+import { Linkedin02Icon, StarIcon } from "@hugeicons-pro/core-solid-rounded";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,6 +15,7 @@ import {
   ThemeToggle,
   ToggleSeparator,
 } from "@/components/toggles";
+import { Button } from "@/components/ui/button";
 import { WorkExperienceEntry } from "@/components/work-experience";
 import { WritingList } from "@/components/writing-list";
 import { getDictionary } from "@/lib/dictionaries";
@@ -26,6 +27,8 @@ import {
   description,
   education,
   GITHUB_USERNAME,
+  heroBio,
+  heroHighlight,
   photos,
   workExperience,
 } from "@/lib/profile";
@@ -98,7 +101,7 @@ export default async function Home({
 
   const contributions = getCachedContributions(user.login);
   const social = await getSocialAccounts(user.login);
-  const featuredRepos = await getPinnedRepos(user.login);
+  // const featuredRepos = await getPinnedRepos(user.login);
   const writingPosts = getAllWritingPosts(locale);
   const featuredWritingPosts = getFeaturedWritingPosts(locale);
 
@@ -116,7 +119,7 @@ export default async function Home({
   };
 
   return (
-    <div className="w-full min-h-screen bg-white text-zinc-950 py-12 px-6 font-serif dark:bg-zinc-950 dark:text-zinc-50">
+    <div className="w-full min-h-screen bg-white text-zinc-950 py-12 px-6 font-sans text-base font-normal dark:bg-zinc-950 dark:text-zinc-50">
       <script
         type="application/ld+json"
         // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires a raw <script> tag; the `<` escape below is the mitigation since bio is user-authored.
@@ -127,100 +130,64 @@ export default async function Home({
       <div className="max-w-152 h-full mx-auto flex flex-col gap-4">
         <header className="flex flex-col gap-2.5">
           <div className="flex items-start gap-6 mb-2">
-            {/* biome-ignore lint/performance/noImgElement: fixed local asset, no next/image sizing needed */}
-            <img
-              src={"/img/me.png"}
-              alt={user.login}
-              className="h-27 w-27 shrink-0 rounded-full border-2 border-zinc-500 object-cover object-top grayscale"
-            />
-            <div className="space-y-2.5 w-full">
-              <div className="w-full flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div className="w-full flex flex-col md:flex-row">
+              <div className="w-full items-star space-y-1">
                 <div className="flex items-center gap-1.5">
-                  <h1 className="text-2xl font-normal">
-                    {user.name ?? user.login}
-                  </h1>
-                  <HugeiconsIcon
-                    icon={NewReleasesIcon}
-                    size={16}
-                    className="text-blue-500"
-                  />
+                  <h1 className="font-medium">{user.name ?? user.login}</h1>
                 </div>
-                <div className="flex items-center gap-1">
-                  <LanguageToggle locale={locale} dict={dict} />
-                  <ToggleSeparator />
-                  <ThemeToggle dict={dict} />
-                </div>
+                <Description segments={description} locale={locale} />
               </div>
-              <Description segments={description} locale={locale} />
-              <div className="text-zinc-600 flex items-center gap-2 dark:text-zinc-400">
-                {social.map((s: { provider: string; url: string }) => (
-                  <Link
-                    key={s.provider}
-                    href={s.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-zinc-950 dark:hover:text-zinc-50"
-                  >
-                    {s.provider}
-                  </Link>
-                ))}
+              <div className="flex items-center gap-1">
+                <LanguageToggle locale={locale} dict={dict} />
+                <ToggleSeparator />
+                <ThemeToggle dict={dict} />
               </div>
             </div>
           </div>
+          <div className="space-y-3">
+            <div className="text-zinc-600 dark:text-zinc-400">
+              {heroBio[locale]}
+            </div>
+            <div className="text-zinc-600 dark:text-zinc-400">
+              {heroHighlight.prefix[locale]}{" "}
+              <Link
+                href="https://github.com/castrogusttavo/nexo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-zinc-950 dark:hover:text-zinc-50"
+              >
+                Nexo
+              </Link>
+              {heroHighlight.middle[locale]}{" "}
+              <Link
+                href="https://linkedin.com/in/castrogusttavo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 underline hover:text-zinc-950 dark:hover:text-zinc-50"
+              >
+                linkedIn
+              </Link>
+              {heroHighlight.suffix[locale]}
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Link href="https://cal.com/castrogusttavo/15min">
+              <Button>{dict.hero.bookCall}</Button>
+            </Link>
+            <Link href="https://x.com/gustta_dev">
+              <Button variant="outline">{dict.hero.messageOnX}</Button>
+            </Link>
+          </div>
+        </header>
+
+        <h2 className="text-zinc-500 text-base mt-4">{dict.performance}</h2>
+        <div>
           <Suspense fallback={<GitHubContributionsFallback />}>
             <GitHubContributions
               contributions={contributions}
               githubProfileUrl={`https://github.com/${user.login}`}
             />
           </Suspense>
-        </header>
-
-        <h2 className="text-zinc-500 text-base mt-4">{dict.proofOfWork}</h2>
-        <hr className="border border-zinc-200 dark:border-zinc-800" />
-        <div className="flex flex-col gap-4">
-          {featuredRepos.map((repo) => (
-            <div key={repo.url} className="flex items-start justify-between">
-              <div className="flex flex-col gap-1.5">
-                <div className="flex gap-2.5">
-                  <h3 className="text-xl font-normal capitalize">
-                    {repo.name}
-                  </h3>
-                  <div className="hidden md:flex gap-1 items-center">
-                    <HugeiconsIcon
-                      icon={StarIcon}
-                      strokeWidth={2}
-                      size={13}
-                      className="text-yellow-400"
-                    />
-                    <span className="text-sm">{repo.stargazerCount}</span>
-                  </div>
-                </div>
-                <p className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-                  {repo.description}
-                </p>
-              </div>
-              <div className="text-zinc-600 flex items-center gap-2 dark:text-zinc-400">
-                {repo.homepageUrl && (
-                  <Link
-                    href={repo.homepageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-zinc-950 dark:hover:text-zinc-50"
-                  >
-                    {dict.repoLinks.site}
-                  </Link>
-                )}
-                <Link
-                  href={repo.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-zinc-950 dark:hover:text-zinc-50"
-                >
-                  {dict.repoLinks.source}
-                </Link>
-              </div>
-            </div>
-          ))}
         </div>
 
         {workExperience.length > 0 && (

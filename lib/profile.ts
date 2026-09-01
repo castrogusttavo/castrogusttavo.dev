@@ -133,7 +133,7 @@ export const education: Education[] = [
   },
 ];
 
-export const contactHref = "mailto:castrogusttavo.dev@gmail.com";
+export const contactHref = "https://cal.com/castrogusttavo/15min";
 
 /**
  * The bio, as a sequence of plain-text runs and links. A link may carry a
@@ -153,28 +153,39 @@ export const description: DescriptionSegment[] = [
   {
     type: "text",
     text: {
-      pt: "Construo produtos web com ",
-      en: "I build web products with ",
+      pt: "Engenheiro backend",
+      en: "Backend engineer",
     },
-  },
-  {
-    type: "link",
-    href: "https://nextjs.org",
-    label: { pt: "Next.js", en: "Next.js" },
-    tooltip: {
-      pt: "o framework que uso no dia a dia",
-      en: "the framework I reach for day to day",
-    },
-  },
-  { type: "text", text: { pt: " e ", en: " and " } },
-  {
-    type: "link",
-    href: "https://www.typescriptlang.org",
-    label: { pt: "TypeScript", en: "TypeScript" },
-    tooltip: { pt: "sem exceções", en: "no exceptions" },
   },
   { type: "text", text: { pt: ".", en: "." } },
 ];
+
+export const heroBio: Localized = {
+  pt: "Hey, sou o Gusttavo, um engenheiro em São Paulo, com 3 anos de experiência, obcecado por open source, experiência do desenvolvedor e queijo.",
+  en: "Yo, I'm Gusttavo, an engineer based in Sao Paulo, with 3 years of experience, obsessed with open source, developer experience, and cheese.",
+};
+
+/** The two runs of plain text around the Nexo and LinkedIn links in the
+    second hero paragraph — link labels themselves ("Nexo", "LinkedIn") don't
+    need translation, so only the surrounding prose is localized here. */
+export const heroHighlight: {
+  prefix: Localized;
+  middle: Localized;
+  suffix: Localized;
+} = {
+  prefix: {
+    pt: "Atualmente, estou construindo a",
+    en: "These days, I'm building",
+  },
+  middle: {
+    pt: ", com lançamento em 14 de setembro, e compartilho meu trabalho no",
+    en: ", launching September 14th, and I share my work on",
+  },
+  suffix: {
+    pt: ", onde já ultrapassei 5M de visualizações este ano!",
+    en: ", where I've pulled over 5M views this year!",
+  },
+};
 
 /** The fanned photographs above the footer — "por aí" / "elsewhere". */
 export type Photo = {

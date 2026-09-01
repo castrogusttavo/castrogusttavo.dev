@@ -8,8 +8,10 @@ export type Dictionary = {
   };
   nav: { writing: string };
   proofOfWork: string;
+  performance: string;
   repoLinks: { site: string; source: string };
   workedAt: string;
+  hero: { bookCall: string; messageOnX: string };
   experience: { showMore: string; showLess: string };
   education: string;
   elsewhere: string;
@@ -34,8 +36,10 @@ const pt: Dictionary = {
   },
   nav: { writing: "escrita" },
   proofOfWork: "provas de trabalho",
+  performance: "desempenho",
   repoLinks: { site: "site", source: "código" },
   workedAt: "por onde já passei",
+  hero: { bookCall: "agendar uma call", messageOnX: "mensagem no X" },
   experience: { showMore: "ver mais", showLess: "ver menos" },
   education: "formação",
   elsewhere: "por aí",
@@ -58,8 +62,10 @@ const en: Dictionary = {
   },
   nav: { writing: "writing" },
   proofOfWork: "proof of work",
+  performance: "performance",
   repoLinks: { site: "site", source: "source" },
   workedAt: "places i worked at",
+  hero: { bookCall: "Book a call", messageOnX: "Message on X" },
   experience: { showMore: "show more", showLess: "show less" },
   education: "education",
   elsewhere: "elsewhere",
