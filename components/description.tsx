@@ -15,7 +15,7 @@ export function Description({
   locale: Locale;
 }) {
   return (
-    <p>
+    <p className="text-zinc-500 dark:text-zinc-400">
       {segments.map((segment, index) =>
         segment.type === "text" ? (
           // biome-ignore lint/suspicious/noArrayIndexKey: a fixed, hand-authored sequence of runs — position is the identity.
