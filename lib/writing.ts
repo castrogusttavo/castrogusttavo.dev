@@ -85,10 +85,10 @@ export function getAllWritingPosts(locale: Locale): WritingPost[] {
  * page features; the full archive at `/writing` is unaffected.
  */
 export const FEATURED_WRITING_SLUGS: string[] = [
-  "background-jobs-with-bullmq",
-  "errors-as-values",
-  "read-through-cache-with-redis",
   "cost-of-founding-a-software-startup",
+  "cluster-lpa2v-appsec",
+  "read-through-cache-with-redis",
+  "estimating-engineering-work",
   "tiptap-to-platejs",
 ];
 
