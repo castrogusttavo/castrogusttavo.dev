@@ -5,7 +5,7 @@ import "../globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { HREFLANG, isLocale, LOCALES } from "@/lib/locale";
-import { GITHUB_USERNAME } from "@/lib/profile";
+import { GITHUB_USERNAME, SITE_URL } from "@/lib/profile";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +29,14 @@ export function generateStaticParams() {
 export const dynamicParams = false;
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: { default: GITHUB_USERNAME, template: `%s · ${GITHUB_USERNAME}` },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  twitter: { card: "summary_large_image", creator: "@gustta_dev" },
 };
 
 export default async function LocaleLayout({
