@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { getDictionary } from "@/lib/dictionaries";
 import { isLocale, type Locale } from "@/lib/locale";
 import { description, GITHUB_USERNAME } from "@/lib/profile";
 
@@ -22,6 +23,7 @@ export default async function Image({
 }) {
   const { locale: rawLocale } = await params;
   const locale: Locale = isLocale(rawLocale) ? rawLocale : "en";
+  const dict = getDictionary(locale);
 
   const res = await fetch(`https://api.github.com/users/${GITHUB_USERNAME}`, {
     headers: { Accept: "application/vnd.github+json" },
@@ -79,8 +81,9 @@ export default async function Image({
         <div
           style={{
             display: "flex",
-            fontSize: 30,
-            color: "#3f3f46",
+            fontSize: 40,
+            fontWeight: 600,
+            color: "#09090b",
             marginTop: 48,
             maxWidth: 1000,
           }}
@@ -88,6 +91,20 @@ export default async function Image({
           {bio}
         </div>
       ) : null}
+      <div
+        style={{
+          display: "flex",
+          alignSelf: "flex-start",
+          marginTop: "auto",
+          padding: "16px 28px",
+          borderRadius: 999,
+          background: "#09090b",
+          color: "#ffffff",
+          fontSize: 28,
+        }}
+      >
+        {dict.contact.cta} →
+      </div>
     </div>,
     { ...size },
   );
