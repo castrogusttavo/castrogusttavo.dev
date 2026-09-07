@@ -8,8 +8,10 @@ export const GITHUB_USERNAME = "castrogusttavo";
 
 /** Canonical production origin — the single source of truth for
     `metadataBase`, the sitemap, robots.txt, and JSON-LD `url`/`sameAs`
-    fields. No trailing slash. */
-export const SITE_URL = "https://castrogusttavo.com";
+    fields. No trailing slash.
+    Points at the live Vercel URL until castrogusttavo.com is bought and
+    pointed here — swap this one line when that happens. */
+export const SITE_URL = "https://castrogusttavo-dev.vercel.app";
 
 type Localized = Record<Locale, string>;
 
