@@ -30,6 +30,7 @@ import {
   heroBio,
   heroHighlight,
   photos,
+  SITE_URL,
   workExperience,
 } from "@/lib/profile";
 import { getAllWritingPosts, getFeaturedWritingPosts } from "@/lib/writing";
@@ -72,9 +73,16 @@ export async function generateMetadata({
     description: desc,
     alternates: {
       canonical: `/${locale}`,
-      languages: { pt: "/pt", en: "/en" },
+      languages: { pt: "/pt", en: "/en", "x-default": "/" },
     },
-    openGraph: { type: "profile", title: name, description: desc },
+    openGraph: {
+      type: "profile",
+      title: name,
+      description: desc,
+      url: `/${locale}`,
+      siteName: name,
+    },
+    twitter: { card: "summary_large_image", title: name, description: desc },
   };
 }
 
@@ -111,6 +119,7 @@ export default async function Home({
     "@type": "Person",
     name: user.name ?? user.login,
     alternateName: user.login,
+    url: `${SITE_URL}/${locale}`,
     ...(user.bio ? { description: user.bio } : {}),
     image: user.avatar_url,
     sameAs: [
