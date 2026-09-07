@@ -31,6 +31,7 @@ import {
   heroHighlight,
   photos,
   SITE_URL,
+  socialBio,
   workExperience,
 } from "@/lib/profile";
 import { getAllWritingPosts, getFeaturedWritingPosts } from "@/lib/writing";
@@ -49,9 +50,12 @@ export async function generateMetadata({
 
   // The GitHub bio is a one-liner meant for a profile card, not a SERP
   // snippet — it's often well under the ~120-160 char sweet spot Google
-  // wants, so the hero bio (already sized for this) is the description here
-  // regardless of whether the GitHub fetch below even succeeds.
+  // wants, so the hero bio (already sized for this) is the meta description
+  // here regardless of whether the GitHub fetch below even succeeds. Social
+  // cards get the shorter `socialBio` instead, since they clip on mobile
+  // around ~125 chars.
   const desc = heroBio[locale];
+  const socialDesc = socialBio[locale];
 
   const res = await fetch(`https://api.github.com/users/${GITHUB_USERNAME}`, {
     headers: { Accept: "application/vnd.github+json" },
@@ -75,11 +79,15 @@ export async function generateMetadata({
     openGraph: {
       type: "profile",
       title: name,
-      description: desc,
+      description: socialDesc,
       url: `/${locale}`,
       siteName: name,
     },
-    twitter: { card: "summary_large_image", title: name, description: desc },
+    twitter: {
+      card: "summary_large_image",
+      title: name,
+      description: socialDesc,
+    },
   };
 }
 

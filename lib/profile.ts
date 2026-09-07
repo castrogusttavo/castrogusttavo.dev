@@ -172,6 +172,15 @@ export const heroBio: Localized = {
   en: "Yo, I'm Gusttavo, an engineer based in Sao Paulo, with 3 years of experience, obsessed with open source, developer experience, and cheese.",
 };
 
+/** A shorter cut of `heroBio` for social-card descriptions (og:description,
+    twitter:description), which get clipped on mobile around ~125 chars —
+    well under `heroBio`'s length, which is sized for the meta description
+    instead. */
+export const socialBio: Localized = {
+  pt: "Hey, sou o Gusttavo, um engenheiro em São Paulo, obcecado por open source e experiência do desenvolvedor.",
+  en: "Yo, I'm Gusttavo, an engineer based in Sao Paulo, obsessed with open source and developer experience.",
+};
+
 /** The two runs of plain text around the Nexo and LinkedIn links in the
     second hero paragraph — link labels themselves ("Nexo", "LinkedIn") don't
     need translation, so only the surrounding prose is localized here. */
