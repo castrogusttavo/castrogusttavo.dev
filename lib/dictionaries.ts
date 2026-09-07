@@ -28,6 +28,7 @@ export type Dictionary = {
   contact: { lead: string; cta: string };
   writing: {
     heading: string;
+    description: string;
     empty: string;
     back: string;
     readMore: string;
@@ -78,6 +79,8 @@ const pt: Dictionary = {
   contact: { lead: "bora trocar uma ideia?", cta: "manda um oi" },
   writing: {
     heading: "escrita",
+    description:
+      "Artigos sobre arquitetura de software, engenharia e algoritmos, escritos a partir de decisões e problemas reais de produção.",
     empty: "nada por aqui ainda — em breve.",
     back: "voltar",
     readMore: "ler mais",
@@ -126,6 +129,8 @@ const en: Dictionary = {
   contact: { lead: "wanna chat?", cta: "let's talk" },
   writing: {
     heading: "writing",
+    description:
+      "Articles on software architecture, engineering, and algorithms, grounded in real production decisions and problems.",
     empty: "nothing here yet — soon.",
     back: "back",
     readMore: "read more",

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { WritingList } from "@/components/writing-list";
 import { getDictionary } from "@/lib/dictionaries";
 import { isLocale, LOCALES, type Locale } from "@/lib/locale";
+import { GITHUB_USERNAME, SITE_URL } from "@/lib/profile";
 import { getAllWritingPosts } from "@/lib/writing";
 
 export function generateStaticParams() {
@@ -24,9 +25,25 @@ export async function generateMetadata({
 
   return {
     title: dict.writing.heading,
+    description: dict.writing.description,
     alternates: {
       canonical: `/${locale}/writing`,
-      languages: { pt: "/pt/writing", en: "/en/writing" },
+      languages: {
+        pt: "/pt/writing",
+        en: "/en/writing",
+        "x-default": "/writing",
+      },
+    },
+    openGraph: {
+      type: "website",
+      title: dict.writing.heading,
+      description: dict.writing.description,
+      url: `/${locale}/writing`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: dict.writing.heading,
+      description: dict.writing.description,
     },
   };
 }
@@ -42,8 +59,35 @@ export default async function WritingIndex({
   const dict = getDictionary(locale);
   const posts = getAllWritingPosts(locale);
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    name: dict.writing.heading,
+    description: dict.writing.description,
+    url: `${SITE_URL}/${locale}/writing`,
+    author: {
+      "@type": "Person",
+      name: GITHUB_USERNAME,
+      url: `${SITE_URL}/${locale}`,
+    },
+    blogPost: posts.map((post) => ({
+      "@type": "BlogPosting",
+      headline: post.frontmatter.title,
+      description: post.frontmatter.description,
+      url: `${SITE_URL}/${locale}/writing/${post.slug}`,
+      ...(post.frontmatter.date
+        ? { datePublished: post.frontmatter.date }
+        : {}),
+    })),
+  };
+
   return (
     <div className="w-full min-h-screen bg-white text-zinc-950 py-12 px-6 font-serif dark:bg-zinc-950 dark:text-zinc-50">
+      <script
+        type="application/ld+json"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires a raw <script> tag; content here is all internal post frontmatter, not user input.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="max-w-152 mx-auto flex flex-col gap-4">
         <Link
           href={`/${locale}#escrita`}
