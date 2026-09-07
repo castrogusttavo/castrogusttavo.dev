@@ -10,6 +10,7 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "404",
   description: "This page does not exist.",
+  robots: { index: false, follow: false },
 };
 
 export default function GlobalNotFound() {
