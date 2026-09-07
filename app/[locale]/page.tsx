@@ -35,11 +35,6 @@ import {
 } from "@/lib/profile";
 import { getAllWritingPosts, getFeaturedWritingPosts } from "@/lib/writing";
 
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength - 1).trimEnd()}…`;
-}
-
 export function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }));
 }
@@ -51,7 +46,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
-  const dict = getDictionary(locale);
+
+  // The GitHub bio is a one-liner meant for a profile card, not a SERP
+  // snippet — it's often well under the ~120-160 char sweet spot Google
+  // wants, so the hero bio (already sized for this) is the description here
+  // regardless of whether the GitHub fetch below even succeeds.
+  const desc = heroBio[locale];
 
   const res = await fetch(`https://api.github.com/users/${GITHUB_USERNAME}`, {
     headers: { Accept: "application/vnd.github+json" },
@@ -59,14 +59,11 @@ export async function generateMetadata({
   });
 
   if (!res.ok) {
-    return { title: GITHUB_USERNAME };
+    return { title: GITHUB_USERNAME, description: desc };
   }
 
   const user = await res.json();
   const name = user.name ?? GITHUB_USERNAME;
-  const desc = user.bio
-    ? truncate(user.bio, 160)
-    : dict.meta.fallbackDescription.replace("{{name}}", name);
 
   return {
     title: `${name} (@${GITHUB_USERNAME})`,

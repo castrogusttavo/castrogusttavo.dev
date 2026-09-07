@@ -20,7 +20,6 @@ export type Dictionary = {
     months: string[];
     legend: { less: string; more: string };
   };
-  meta: { fallbackDescription: string };
   experience: { showMore: string; showLess: string };
   education: string;
   elsewhere: string;
@@ -71,7 +70,6 @@ const pt: Dictionary = {
     ],
     legend: { less: "Menos", more: "Mais" },
   },
-  meta: { fallbackDescription: "portfólio de desenvolvedor de {{name}}." },
   experience: { showMore: "ver mais", showLess: "ver menos" },
   education: "formação",
   elsewhere: "por aí",
@@ -121,7 +119,6 @@ const en: Dictionary = {
     ],
     legend: { less: "Less", more: "More" },
   },
-  meta: { fallbackDescription: "{{name}}'s developer portfolio." },
   experience: { showMore: "show more", showLess: "show less" },
   education: "education",
   elsewhere: "elsewhere",
