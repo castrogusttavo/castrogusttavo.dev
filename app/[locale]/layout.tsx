@@ -2,10 +2,15 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { notFound } from "next/navigation";
 import "../globals.css";
+import { SiteNav } from "@/components/site-nav";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getDictionary } from "@/lib/dictionaries";
+import { getPinnedRepos } from "@/lib/github-service";
 import { HREFLANG, isLocale, LOCALES } from "@/lib/locale";
 import { GITHUB_USERNAME, SITE_URL } from "@/lib/profile";
+import type { SearchItem } from "@/lib/search";
+import { getAllWritingPosts } from "@/lib/writing";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,6 +44,30 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", creator: "@gustta_dev" },
 };
 
+async function getSearchItems(locale: (typeof LOCALES)[number]) {
+  const posts = getAllWritingPosts(locale);
+  const repos = await getPinnedRepos(GITHUB_USERNAME).catch(() => []);
+
+  const postItems: SearchItem[] = posts.map((post) => ({
+    id: `post-${post.slug}`,
+    type: "post",
+    title: post.frontmatter.title,
+    description: post.frontmatter.description,
+    href: `/${locale}/writing/${post.slug}`,
+    iconKey: post.frontmatter.icon,
+  }));
+
+  const projectItems: SearchItem[] = repos.map((repo) => ({
+    id: `project-${repo.name}`,
+    type: "project",
+    title: repo.name,
+    description: repo.description ?? "",
+    href: `/${locale}/project`,
+  }));
+
+  return [...postItems, ...projectItems];
+}
+
 export default async function LocaleLayout({
   children,
   params,
@@ -48,6 +77,9 @@ export default async function LocaleLayout({
 }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
+
+  const dict = getDictionary(locale);
+  const searchItems = await getSearchItems(locale);
 
   return (
     <html
@@ -62,7 +94,10 @@ export default async function LocaleLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider>
+            <SiteNav locale={locale} dict={dict} searchItems={searchItems} />
+            {children}
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>
