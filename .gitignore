@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local-only scratch content
+/social_media
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
