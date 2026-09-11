@@ -27,6 +27,8 @@ export type Education = {
   degree: Localized;
   institution: string;
   period: string;
+  /** Topics studied — not per-course grades, just what's being covered. */
+  topics?: string[];
 };
 
 export const workExperience: WorkExperience[] = [
@@ -137,6 +139,15 @@ export const education: Education[] = [
     },
     institution: "Fatec Praia Grande",
     period: "2024 — 2027",
+    topics: [
+      "Algorithms",
+      "TypeScript",
+      "DSA",
+      "Advanced Databases",
+      "System Design",
+      "Distributed Systems",
+      "Software Engineering",
+    ],
   },
 ];
 

@@ -12,3 +12,18 @@ export function formatPostDate(date: string, locale: Locale): string {
     ? format(parsed, "d 'de' MMMM 'de' yyyy", { locale: ptBR })
     : format(parsed, "MMMM d, yyyy");
 }
+
+/**
+ * `workExperience` and `education` entries (see profile.ts) both use a
+ * single "YYYY — YYYY" / "YYYY — present" string, not localized — split it
+ * into the `{start, end?}` shape `ExperienceItemType` wants, treating
+ * "present" (case-insensitive) as ongoing.
+ */
+export function parsePeriodRange(period: string): {
+  start: string;
+  end?: string;
+} {
+  const [start, end] = period.split("—").map((part) => part.trim());
+  if (!end || end.toLowerCase() === "present") return { start };
+  return { start, end };
+}
