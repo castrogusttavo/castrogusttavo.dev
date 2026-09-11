@@ -33,6 +33,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }),
   );
 
+  const projectIndex: MetadataRoute.Sitemap = LOCALES.map(
+    (locale): MetadataRoute.Sitemap[number] => ({
+      url: `${SITE_URL}/${locale}/project`,
+      changeFrequency: "weekly",
+      priority: 0.6,
+      alternates: { languages: languagesFor((l) => `/${l}/project`) },
+    }),
+  );
+
   const slugs = new Set(
     LOCALES.flatMap((locale) =>
       getAllWritingPosts(locale).map((post) => post.slug),
@@ -59,5 +68,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }));
   });
 
-  return [...home, ...writingIndex, ...articles];
+  return [...home, ...writingIndex, ...projectIndex, ...articles];
 }
