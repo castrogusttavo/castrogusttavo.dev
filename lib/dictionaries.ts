@@ -6,7 +6,16 @@ export type Dictionary = {
     theme: string;
     themeNames: { system: string; light: string; dark: string };
   };
-  nav: { writing: string };
+  nav: {
+    home: string;
+    writing: string;
+    project: string;
+    search: string;
+    searchPlaceholder: string;
+    noResults: string;
+    resultPost: string;
+    resultProject: string;
+  };
   proofOfWork: string;
   performance: string;
   repoLinks: { site: string; source: string };
@@ -29,11 +38,19 @@ export type Dictionary = {
     heading: string;
     description: string;
     empty: string;
-    back: string;
-    readMore: string;
     /** Contains a `{{minutes}}` placeholder — plain data, not a function, so
         the whole dictionary can still cross into Client Components as a prop. */
     readingTime: string;
+  };
+  project: {
+    heading: string;
+    description: string;
+    empty: string;
+    stars: string;
+    commits: string;
+    contributors: string;
+    license: string;
+    openIssues: string;
   };
 };
 
@@ -43,9 +60,18 @@ const pt: Dictionary = {
     theme: "Mudar tema",
     themeNames: { system: "Sistema", light: "Claro", dark: "Escuro" },
   },
-  nav: { writing: "escrita" },
+  nav: {
+    home: "início",
+    writing: "escrita",
+    project: "projetos",
+    search: "buscar",
+    searchPlaceholder: "Buscar posts e projetos…",
+    noResults: "Nenhum resultado.",
+    resultPost: "post",
+    resultProject: "projeto",
+  },
   proofOfWork: "provas de trabalho",
-  performance: "desempenho",
+  performance: "produtividade",
   repoLinks: { site: "site", source: "código" },
   workedAt: "por onde já passei",
   hero: { bookCall: "agendar uma call", messageOnX: "mensagem no X" },
@@ -80,9 +106,17 @@ const pt: Dictionary = {
     description:
       "Artigos sobre arquitetura de software, engenharia e algoritmos, escritos a partir de decisões e problemas reais de produção.",
     empty: "nada por aqui ainda — em breve.",
-    back: "voltar",
-    readMore: "ler mais",
     readingTime: "{{minutes}} min de leitura",
+  },
+  project: {
+    heading: "projetos",
+    description: "Projetos e repositórios fixados no GitHub.",
+    empty: "nada fixado ainda.",
+    stars: "estrelas",
+    commits: "commits",
+    contributors: "contribuidores",
+    license: "licença",
+    openIssues: "issues abertas",
   },
 };
 
@@ -92,7 +126,16 @@ const en: Dictionary = {
     theme: "Change theme",
     themeNames: { system: "System", light: "Light", dark: "Dark" },
   },
-  nav: { writing: "writing" },
+  nav: {
+    home: "home",
+    writing: "writing",
+    project: "projects",
+    search: "search",
+    searchPlaceholder: "Search posts and projects…",
+    noResults: "No results.",
+    resultPost: "post",
+    resultProject: "project",
+  },
   proofOfWork: "proof of work",
   performance: "performance",
   repoLinks: { site: "site", source: "source" },
@@ -129,9 +172,17 @@ const en: Dictionary = {
     description:
       "Articles on software architecture, engineering, and algorithms, grounded in real production decisions and problems.",
     empty: "nothing here yet — soon.",
-    back: "back",
-    readMore: "read more",
     readingTime: "{{minutes}} min read",
+  },
+  project: {
+    heading: "projects",
+    description: "Pinned projects and repositories from GitHub.",
+    empty: "nothing pinned yet.",
+    stars: "stars",
+    commits: "commits",
+    contributors: "contributors",
+    license: "license",
+    openIssues: "open issues",
   },
 };
 
