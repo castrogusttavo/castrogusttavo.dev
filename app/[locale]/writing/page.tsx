@@ -1,14 +1,12 @@
-import { HugeiconsIcon } from "@hugeicons/react";
-import ArrowLeft02Icon from "@hugeicons-pro/core-bulk-rounded/ArrowLeft02Icon";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { FeaturedWriting } from "@/components/featured-writing";
 import { Badge } from "@/components/ui/badge";
 import { WritingList } from "@/components/writing-list";
 import { getDictionary } from "@/lib/dictionaries";
 import { isLocale, LOCALES, type Locale } from "@/lib/locale";
 import { GITHUB_USERNAME, SITE_URL } from "@/lib/profile";
-import { getAllWritingPosts } from "@/lib/writing";
+import { getAllWritingPosts, getFeaturedWritingPosts } from "@/lib/writing";
 
 export function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }));
@@ -58,6 +56,7 @@ export default async function WritingIndex({
   const locale: Locale = rawLocale;
   const dict = getDictionary(locale);
   const posts = getAllWritingPosts(locale);
+  const featuredPosts = getFeaturedWritingPosts(locale);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -89,20 +88,16 @@ export default async function WritingIndex({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="max-w-152 mx-auto flex flex-col gap-4">
-        <Link
-          href={`/${locale}#escrita`}
-          aria-label={dict.writing.back}
-          className="text-sm text-zinc-500 hover:text-zinc-950 dark:hover:text-zinc-50"
-        >
-          <HugeiconsIcon icon={ArrowLeft02Icon} size={16} strokeWidth={2} />
-        </Link>
-
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-normal">{dict.writing.heading}</h1>
           <Badge variant="outline">{posts.length}</Badge>
         </div>
 
         <hr className="border-zinc-200 dark:border-zinc-800" />
+
+        {featuredPosts.length > 0 && (
+          <FeaturedWriting posts={featuredPosts} locale={locale} />
+        )}
 
         {posts.length > 0 ? (
           <WritingList posts={posts} locale={locale} />

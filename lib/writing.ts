@@ -81,15 +81,12 @@ export function getAllWritingPosts(locale: Locale): WritingPost[] {
 
 /**
  * Hand-picked, in display order — not "most recent," not "most read" (no
- * analytics pipeline for that yet). Edit this array to change what the home
- * page features; the full archive at `/writing` is unaffected.
+ * analytics pipeline for that yet). Edit this array to change the featured
+ * cards at the top of `/writing`; the full archive below is unaffected.
  */
 export const FEATURED_WRITING_SLUGS: string[] = [
   "cost-of-founding-a-software-startup",
   "cluster-lpa2v-appsec",
-  "read-through-cache-with-redis",
-  "estimating-engineering-work",
-  "tiptap-to-platejs",
 ];
 
 export function getFeaturedWritingPosts(locale: Locale): WritingPost[] {

@@ -133,7 +133,7 @@ export default async function WritingArticle({
         />
         <article className="max-w-152 mx-auto flex flex-col gap-4">
           <Link
-            href={`/${locale}#escrita`}
+            href={`/${locale}/writing`}
             className="text-sm text-zinc-500 hover:text-zinc-950 dark:hover:text-zinc-50"
           >
             <HugeiconsIcon icon={ArrowLeft02Icon} size={16} strokeWidth={2} />
