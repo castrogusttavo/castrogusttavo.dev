@@ -194,8 +194,8 @@ export const heroHighlight: {
     en: "These days, I'm building",
   },
   middle: {
-    pt: ", com lançamento em 14 de setembro, e compartilho meu trabalho no",
-    en: ", launching September 14th, and I share my work on",
+    pt: ", com lançamento em 14 de dezembro, e compartilho meu trabalho no",
+    en: ", launching December 14th, and I share my work on",
   },
   suffix: {
     pt: ", onde já ultrapassei 5M de visualizações este ano!",
@@ -230,8 +230,8 @@ export const photos: Photo[] = [
     width: 1080,
     height: 1350,
     caption: {
-      pt: "Nexo Launch Week — 14 de setembro de 2026",
-      en: "Nexo Launch Week — Sep 14, 2026",
+      pt: "Nexo Launch Week — 14 de dezembro de 2026",
+      en: "Nexo Launch Week — Dec 14, 2026",
     },
   },
   {
