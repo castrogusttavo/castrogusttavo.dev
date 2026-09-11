@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Description } from "@/components/description";
+import { EducationSection } from "@/components/education-section";
 import {
   GitHubContributions,
   GitHubContributionsFallback,
@@ -16,8 +17,7 @@ import {
   ToggleSeparator,
 } from "@/components/toggles";
 import { Button } from "@/components/ui/button";
-import { WorkExperienceEntry } from "@/components/work-experience";
-import { WritingList } from "@/components/writing-list";
+import { WorkExperienceSection } from "@/components/work-experience-section";
 import { getDictionary } from "@/lib/dictionaries";
 import { getCachedContributions } from "@/lib/get-cached-contributions";
 import { getPinnedRepos, getSocialAccounts } from "@/lib/github-service";
@@ -34,7 +34,6 @@ import {
   socialBio,
   workExperience,
 } from "@/lib/profile";
-import { getAllWritingPosts, getFeaturedWritingPosts } from "@/lib/writing";
 
 export function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }));
@@ -115,9 +114,6 @@ export default async function Home({
 
   const contributions = getCachedContributions(user.login);
   const social = await getSocialAccounts(user.login);
-  // const featuredRepos = await getPinnedRepos(user.login);
-  const writingPosts = getAllWritingPosts(locale);
-  const featuredWritingPosts = getFeaturedWritingPosts(locale);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -211,16 +207,7 @@ export default async function Home({
           <>
             <h2 className="text-zinc-500 text-base mt-4">{dict.workedAt}</h2>
             <hr className="border border-zinc-200 dark:border-zinc-800" />
-            <div className="flex flex-col gap-4">
-              {workExperience.map((entry) => (
-                <WorkExperienceEntry
-                  key={`${entry.company}-${entry.period}`}
-                  entry={entry}
-                  locale={locale}
-                  dict={dict}
-                />
-              ))}
-            </div>
+            <WorkExperienceSection locale={locale} />
           </>
         )}
 
@@ -228,40 +215,7 @@ export default async function Home({
           <>
             <h2 className="text-zinc-500 text-base mt-4">{dict.education}</h2>
             <hr className="border border-zinc-200 dark:border-zinc-800" />
-            <div className="flex flex-col gap-4">
-              {education.map((entry) => (
-                <div
-                  key={`${entry.institution}-${entry.period}`}
-                  className="flex flex-col gap-1.5"
-                >
-                  <h3>{entry.degree[locale]}</h3>
-                  <p className="text-sm font-normal text-zinc-700 dark:text-zinc-300">
-                    {entry.institution} · {entry.period}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {writingPosts.length > 0 && (
-          <>
-            <h2
-              id="escrita"
-              className="text-zinc-500 text-base mt-4 scroll-mt-8"
-            >
-              {dict.writing.heading}
-            </h2>
-            <hr className="border border-zinc-200 dark:border-zinc-800" />
-            <WritingList posts={featuredWritingPosts} locale={locale} />
-            {writingPosts.length > featuredWritingPosts.length && (
-              <Link
-                href={`/${locale}/writing`}
-                className="self-start text-sm text-zinc-500 underline hover:text-zinc-950 dark:hover:text-zinc-50"
-              >
-                {dict.writing.readMore}
-              </Link>
-            )}
+            <EducationSection locale={locale} />
           </>
         )}
 
