@@ -192,8 +192,10 @@ concessão revogada respondem 401 **na chamada seguinte**, não na expiração.
 ### O consentimento é a decisão, não o registro
 
 O registro dinâmico é aberto de propósito: ele não decide nada. Quem
-decide é a pessoa, numa tela em pt-BR: "<app> quer acessar o seu Steel — o
-app vai agir em seu nome, com as suas permissões". Ela escolhe o
+decide é a pessoa, numa tela em pt-BR que diz quem quer acessar o seu
+Steel, para onde ela volta depois de permitir e que o app vai agir em seu
+nome, com as suas permissões. Quem é esse "quem" mudou em 18/10 — conto
+abaixo, nas limitações. Ela escolhe o
 **workspace**, os **módulos** (só os habilitados) e o **nível de acesso**:
 "Ler" (`mcp:read`) ou "Ler e alterar" (`mcp:read` + `mcp:write`). O aviso
 LGPD diz para onde os dados vão — o provedor do app de IA — e tem versão
@@ -201,9 +203,10 @@ LGPD diz para onde os dados vão — o provedor do app de IA — e tem versão
 `auth.oauth_consent.granted` junto com escopos e módulos.
 
 A concessão aceita vira uma linha `IntegrationGrant` (usuário, workspace,
-cliente, escopos, módulos, último uso, revogação), única por usuário ×
-cliente × workspace enquanto ativa. O usuário vê e revoga as suas em
-Configurações › Segurança › **Apps conectados**. O OWNER/ADMIN do workspace
+cliente, host de destino, escopos, módulos, último uso, revogação), única por
+usuário × cliente × workspace enquanto ativa. O usuário vê e revoga as suas
+em Configurações › Segurança › **Apps conectados**, com o domínio ao lado do
+nome do app. O OWNER/ADMIN do workspace
 tem a mesma tela para todos os membros, com revogação por concessão, por
 membro ou por app, e contagem de chamadas por app em 7 e 30 dias. Revogar,
 por qualquer caminho, apaga os access tokens, revoga os refresh tokens,
@@ -314,7 +317,7 @@ indicador grosseiro — linha não mede dificuldade —, o lado do protocolo
 `http.ts`) soma **1.497 linhas**. O lado da identidade (configuração e
 gateway do OAuth, concessão, consentimento, rotas e telas de Apps
 conectados, services e repositórios de concessão e de cliente OAuth) soma
-**2.575**. A onda inteira tem **26 arquivos de teste** dedicados, de
+**2.575**. A onda de 17/10 tem **26 arquivos de teste** dedicados, de
 unitário a e2e contra o Postgres, e boa parte dos casos é de identidade:
 token vencido, concessão de outro cliente, membro removido, revogação em
 lote, escopo que o token tem e a concessão não.
@@ -345,14 +348,38 @@ mesmo deploy. O checklist de envio aos diretórios
 (`docs/mcp/directory-submission.md`) deixa o `title` próprio para o MCP como
 pendência.
 
-**A tela de consentimento mostra o nome que o cliente declarou.** O
-registro dinâmico é aberto e sem autenticação, como os clientes MCP exigem,
-e o `client_name` vem do próprio cliente. A tela diz "<nome> quer acessar o
-seu Steel", e hoje não mostra o domínio do `redirect_uri`. Um app malicioso
-pode se registrar com um nome conhecido. Escopo, workspace e módulos
-continuam sendo escolha explícita da pessoa, mas o "quem" dessa decisão é
-autodeclarado. A causa raiz é que o desenho deixou toda a decisão no
+**Encontrado e corrigido: a tela de consentimento mostrava o nome que o
+cliente declarou.** O registro dinâmico é aberto e sem autenticação, como os
+clientes MCP exigem, e o `client_name` vem do próprio cliente. Até 18/10, a
+tela dizia "<nome> quer acessar o seu Steel" e não mostrava o domínio do
+`redirect_uri` — para onde o código de autorização de fato vai. Qualquer um
+podia registrar um cliente chamado "Claude" com um `redirect_uri` seu e
+mandar o link para a vítima: *consent phishing*. Escopo, workspace e módulos
+continuavam sendo escolha explícita da pessoa, mas o "quem" dessa decisão
+era autodeclarado. E a página lia a query assinada sem conferir a
+assinatura; um link adulterado renderizava normalmente e só falhava no
+"Permitir". A causa raiz é que o desenho deixou toda a decisão no
 consentimento — e o consentimento só é tão bom quanto o que ele mostra.
+
+A correção ([steel-so/steel#129](https://github.com/steel-so/steel/pull/129),
+registrada como "Atualização (18/10/2026)" na ADR 0033) troca a identidade
+mostrada: o app passa a ser identificado pelo **host do `redirect_uri`**,
+lido no servidor da query assinada, que o provedor já conferiu com as URIs
+registradas. A página confere a assinatura antes de renderizar, e um link
+adulterado nem abre a tela. Uma lista curta em `src/lib/mcp/client-trust.ts`
+marca como "Verificado" só o Claude, o ChatGPT e o Cursor, reconhecidos pelo
+domínio e nunca pelo nome. Qualquer outro aparece como "Um app em
+**<domínio>** quer acessar o seu Steel", com o aviso "App não verificado:
+Ele diz chamar-se “…”". Um app com redirect local aparece como "um app no
+seu computador", porque ali o código não sai da máquina da pessoa. O host
+fica gravado na concessão e no evento de auditoria, e Apps conectados
+mostra o domínio ao lado do nome. Foi para homologação em 18/10, na versão
+`2026.10.18.4`, e conferi lá. Concessões anteriores à correção ficam sem
+host até a próxima autorização: o `redirect_uri` original nunca foi
+guardado.
+
+É a tese do post aplicada a ele mesmo: o protocolo estava certo o tempo
+todo, e o furo estava em quem a tela dizia que estava do outro lado.
 
 **Texto de terceiros chega a um modelo que o Steel não controla.** As
 ferramentas devolvem mensagens de WhatsApp, e-mails e descrições de
@@ -395,8 +422,9 @@ deu e por quem administra. Prova também que um transporte sem estado
 obriga a resolver confirmação por outro caminho, e que um link de volta ao
 produto é um caminho que funciona em qualquer cliente.
 
-Não prova que o consentimento é bem lido, nem que o nome na tela é de quem
-diz ser. Não prova que as descrições servem bem a modelos de terceiros. Não
+Não prova que o consentimento é bem lido. A tela agora mostra para onde o
+código vai e só chama de "Verificado" três domínios, mas não sabe se um
+domínio desconhecido é confiável — essa decisão continua com a pessoa. Não prova que as descrições servem bem a modelos de terceiros. Não
 diz nada sobre latência, nem sobre como o MCP é usado de fato, porque esses
 números ainda não existem. E não torna seguro o degrau de escrita: ele
 continua sendo uma decisão humana explícita, com rastro, não uma garantia.

@@ -187,8 +187,10 @@ next call**, not at expiry.
 ### Consent is the decision, not registration
 
 Dynamic registration is open on purpose: it decides nothing. The person
-decides, on a pt-BR screen — "<app> wants to access your Steel; the app will
-act on your behalf, with your permissions". They pick the **workspace**, the
+decides, on a pt-BR screen that says who wants to access their Steel, where
+they'll land after allowing it, and that the app will act on their behalf
+with their permissions. What counts as "who" changed on 2026-10-18 — more on
+that under limitations. They pick the **workspace**, the
 **modules** (enabled ones only) and the **access level**: read
 (`mcp:read`) or read and change (`mcp:read` + `mcp:write`). The LGPD notice
 says where the data goes — the AI app's provider — and is versioned
@@ -196,9 +198,10 @@ says where the data goes — the AI app's provider — and is versioned
 along with scopes and modules.
 
 The accepted grant becomes an `IntegrationGrant` row (user, workspace,
-client, scopes, modules, last use, revocation), unique per user × client ×
-workspace while active. Users see and revoke theirs under Settings ›
-Security › **Connected apps**. Workspace OWNERs/ADMINs get the same screen
+client, destination host, scopes, modules, last use, revocation), unique per
+user × client × workspace while active. Users see and revoke theirs under
+Settings › Security › **Connected apps**, with the domain next to the app's
+name. Workspace OWNERs/ADMINs get the same screen
 for every member, with revocation per grant, per member or per app, and
 per-app call counts over 7 and 30 days. Revoking, by any path, deletes the
 access tokens, revokes the refresh tokens, removes the consent and, in the
@@ -301,7 +304,7 @@ proxy — lines don't measure difficulty — the protocol side (route,
 `server.ts`, `tools.ts`, `discovery.ts`, `resources.ts`, `prompts.ts`,
 `http.ts`) adds up to **1,497 lines**. The identity side (OAuth config and
 gateway, grant, consent, Connected apps routes and screens, grant and OAuth
-client services and repositories) adds up to **2,575**. The wave has **26
+client services and repositories) adds up to **2,575**. The 2026-10-17 wave has **26
 dedicated test files**, unit through e2e against Postgres, and many of the
 cases are about identity: expired token, another client's grant, removed
 member, bulk revocation, a scope the token has and the grant doesn't.
@@ -330,14 +333,40 @@ chat in mind reaches MCP in the same deploy. The directory checklist
 (`docs/mcp/directory-submission.md`) still lists an MCP-specific `title` as
 pending.
 
-**The consent screen shows the name the client declared.** Registration is
-open and unauthenticated, as MCP clients require, and `client_name` comes
-from the client itself. The screen says "<name> wants to access your Steel"
-and doesn't show the `redirect_uri` domain today. A malicious app can
-register under a well-known name. Scope, workspace and modules are still the
-person's explicit choice, but the "who" of that choice is self-declared. The
-root cause is that the design put the whole decision on consent — and consent
-is only as good as what it shows.
+**Found and fixed: the consent screen showed the name the client
+declared.** Registration is open and unauthenticated, as MCP clients
+require, and `client_name` comes from the client itself. Until 2026-10-18 the
+screen said "<name> wants to access your Steel" and never showed the
+`redirect_uri` domain — where the authorization code actually goes. Anyone
+could register a client called "Claude" with their own `redirect_uri` and
+send the victim the link: consent phishing. Scope, workspace and modules
+were still the person's explicit choice, but the "who" of that choice was
+self-declared. On top of that, the page read the signed query without
+checking the signature, so a tampered link rendered fine and only failed on
+"Permitir". The root cause is that the design put the whole decision on
+consent — and consent is only as good as what it shows.
+
+The fix ([steel-so/steel#129](https://github.com/steel-so/steel/pull/129),
+recorded as an 18/10/2026 update to ADR 0033) changes the identity on
+screen: the app is now identified by the **`redirect_uri` host**, read
+server-side from the signed query, which the provider had already matched
+against the registered URIs. The page verifies the signature before
+rendering, so a tampered link never opens the screen. A short list in
+`src/lib/mcp/client-trust.ts` marks only Claude, ChatGPT and Cursor as
+"Verificado", recognized by domain and never by name. Anything else shows up
+as "Um app em **<domain>** quer acessar o seu Steel" ("An app at <domain>
+wants to access your Steel"), with an "App não verificado: Ele diz chamar-se
+“…”" warning ("Unverified app: it says it's called “…”"). An app with a
+local redirect shows up as "um app no seu computador" ("an app on your
+computer"), because the code never leaves the person's machine. The host is
+stored on the grant and in the audit event, and Connected apps shows the
+domain next to the name. It shipped to staging on 2026-10-18 in
+`2026.10.18.4`, and I checked it there. Grants made before the fix have no
+host until their next authorization: the original `redirect_uri` was never
+stored.
+
+It's this post's thesis applied to the post itself: the protocol was fine
+all along, and the hole was in who the screen said was on the other end.
 
 **Third-party text reaches a model Steel doesn't control.** Tools return
 WhatsApp messages, e-mails and ticket descriptions written by people outside
@@ -377,8 +406,9 @@ revocable by whoever granted it and whoever administers the workspace. It
 also proves that a stateless transport forces confirmation down another path,
 and that a link back into the product is one that works in any client.
 
-It doesn't prove consent gets read carefully, or that the name on the screen
-belongs to who it claims. It doesn't prove the descriptions serve third-party
+It doesn't prove consent gets read carefully. The screen now shows where
+the code goes and only calls three domains "Verificado", but it can't tell
+whether an unknown domain is trustworthy — that call is still the person's. It doesn't prove the descriptions serve third-party
 models well. It says nothing about latency or real usage, because those
 numbers don't exist yet. And it doesn't make the write step safe: that is
 still an explicit, traced human decision, not a guarantee.
