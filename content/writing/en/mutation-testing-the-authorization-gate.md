@@ -263,20 +263,28 @@ change verdict between runs, and the gate shouldn't trip on them.
 **The score dropped 1.5 points and the gate didn't notice.** From 80.09% on
 September 21 to 78.58% on October 5 and 12, always above the `break` of 77.
 Part of it is new code: between September 21 and 26, four files and about
-420 more tested mutants came in. The other part is odd. In the September 28
+420 more tested mutants came in. The other part has a known cause. In the September 28
 run, `src/errors/app-error.ts` went from 100% (8 mutants, all killed) to
 **8.33%**, with 88 new survivors. Tested mutants rose from 5,759 to 5,854
-with only 2 more instrumented, which says 88 mutants that `ignoreStatic`
-used to drop started being tested. For each, the log says "Ran all tests
-for this mutant", and all survived, including `appError = () => undefined`,
-which would fail any test checking an error code if it were actually
-active. My reading is that they're false survivors: static mutants run
-without reloading the module, never actually switched on. I haven't
-confirmed it, and I don't know what changed their classification; the
-only commit in that window touching `src/errors` just added one new error
-factory. Without those 88, the September 28 score would be 79.80%, flat
-against two days earlier. What matters is that a whole directory went from
-100% to 8% and the only signal was a global number that stayed above the
+with only 2 more instrumented: 88 mutants that `ignoreStatic` used to drop
+started being tested, and all survived, including
+`appError = () => undefined`, which would fail any test checking an error
+code if it were actually active. The cause is
+[`3ade3bd`](https://github.com/castrogusttavo/nexo/commit/3ade3bd9), from September 26, which added
+`server-admin-env.test.ts`. That test calls `vi.resetModules()` and
+re-imports the service inside the test itself, re-running `app-error.ts`'s
+module setup there. Stryker then counted the file's static mutants as
+covered by that test, and `ignoreStatic` stopped dropping them. But the test
+checks environment variables and never calls an error factory, so none of
+those mutants could die: false survivors, produced by the way one test
+reloads modules. I fixed it in [`1bd29ff`](https://github.com/castrogusttavo/nexo/commit/1bd29ffd) by keeping that
+test file out of the Stryker run; it guards `lib/env`, which isn't mutated
+anyway. The next weekly run will confirm whether `app-error.ts` is back to
+8 killed mutants. Without those 88, the September 28 score would be 79.80%,
+flat against two days earlier.
+
+Knowing the cause doesn't change the main point: a whole directory went
+from 100% to 8% and the only signal was a global number that stayed above the
 limit. A global threshold can't see a local regression, and three weekly
 runs went green right over it.
 
@@ -316,7 +324,8 @@ ownership and any service that doesn't call the helper are outside that
 claim.
 
 And it doesn't prove the score works as an alarm. It dropped a point and a
-half, a directory went from 100% to 8%, and `break` never fired. The number
+half, a directory went from 100% to 8% because of one test that reloaded
+modules, and `break` never fired. The number
 I called the most honest one in the [architecture post](/en/writing/nexo-architecture) is still the most
 honest I have, but it needs someone reading the report per directory, not
 just checking the workflow went green.

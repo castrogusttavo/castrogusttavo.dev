@@ -268,20 +268,29 @@ neles.
 **O score caiu 1,5 ponto e o portão não percebeu.** De 80,09% em 21 de
 setembro pra 78,58% em 5 e 12 de outubro, sempre acima do `break` de 77.
 Uma parte é código novo: entre 21 e 26 de setembro entraram quatro arquivos
-e cerca de 420 mutantes testados a mais. A outra parte é estranha. Na
+e cerca de 420 mutantes testados a mais. A outra parte tem causa conhecida. Na
 execução de 28 de setembro, `src/errors/app-error.ts` foi de 100% (8
 mutantes, todos mortos) para **8,33%**, com 88 sobreviventes novos.
 Mutantes testados subiram de 5.759 pra 5.854 com só 2 mutantes
-instrumentados a mais, o que indica que 88 mutantes que o `ignoreStatic`
-descartava passaram a ser testados. Pra cada um deles o log diz "Ran all
-tests for this mutant", e todos sobreviveram, inclusive
+instrumentados a mais: 88 mutantes que o `ignoreStatic` descartava
+passaram a ser testados, e todos sobreviveram, inclusive
 `appError = () => undefined`, que derrubaria qualquer teste que confira um
-código de erro se estivesse ativo de verdade. Minha leitura é que são falsos sobreviventes: mutantes
-estáticos rodados sem recarregar o módulo, que nunca chegam a ser ativados.
-Não confirmei, e não sei o que mudou a classificação deles; o único commit
-nesse intervalo que tocou `src/errors` só adicionou uma função de erro
-nova. Tirando esses 88, o score de 28 de setembro seria 79,80%, praticamente
-igual ao de dois dias antes. Mas o que importa é que um diretório inteiro
+código de erro se estivesse ativo de verdade. A causa é o
+[`3ade3bd`](https://github.com/castrogusttavo/nexo/commit/3ade3bd9), de 26 de setembro, que adicionou o
+`server-admin-env.test.ts`. Esse teste faz `vi.resetModules()` e importa o
+service de novo dentro do próprio teste, o que roda outra vez a
+inicialização de módulo do `app-error.ts` ali. Com isso o Stryker passou a
+contar os mutantes estáticos do arquivo como cobertos por esse teste, e o
+`ignoreStatic` parou de descartá-los. Só que o teste confere variáveis de
+ambiente e nunca chama uma factory de erro, então nenhum mutante tinha
+como morrer: são falsos sobreviventes, criados pela forma como um teste
+recarrega módulos. Corrigi no [`1bd29ff`](https://github.com/castrogusttavo/nexo/commit/1bd29ffd), tirando esse
+arquivo de teste da execução do Stryker; ele protege `lib/env`, que não é
+mutado de qualquer jeito. A próxima execução semanal confirma se o
+`app-error.ts` volta aos 8 mutantes mortos. Tirando esses 88, o score de 28
+de setembro seria 79,80%, praticamente igual ao de dois dias antes.
+
+Saber a causa não muda o ponto principal: um diretório inteiro
 foi de 100% pra 8% e o único sinal foi um número global que continuou
 acima do limite. Um threshold global não enxerga uma regressão local, e
 três execuções semanais passaram verdes por cima disso.
@@ -322,7 +331,8 @@ recursos pessoais e qualquer service que não chame o helper estão fora
 dessa afirmação.
 
 E não prova que o score é confiável como alarme. Ele caiu um ponto e meio,
-um diretório foi de 100% pra 8%, e o `break` não disparou. O número que eu
+um diretório foi de 100% pra 8% por causa de um teste que recarregava
+módulos, e o `break` não disparou. O número que eu
 chamei de mais honesto no [post de arquitetura](/pt/writing/nexo-architecture) continua sendo o mais
 honesto que eu tenho, mas ele precisa de alguém lendo o relatório por
 diretório, não só olhando se o workflow ficou verde.
