@@ -304,7 +304,9 @@ proxy — lines don't measure difficulty — the protocol side (route,
 `server.ts`, `tools.ts`, `discovery.ts`, `resources.ts`, `prompts.ts`,
 `http.ts`) adds up to **1,497 lines**. The identity side (OAuth config and
 gateway, grant, consent, Connected apps routes and screens, grant and OAuth
-client services and repositories) adds up to **2,575**. The 2026-10-17 wave has **26
+client services and repositories) adds up to **2,938** at `2026.10.18.4` —
+it was 2,575 before the consent-screen fix, and all 363 extra lines landed
+on the identity side; the protocol side didn't move. The 2026-10-17 wave has **26
 dedicated test files**, unit through e2e against Postgres, and many of the
 cases are about identity: expired token, another client's grant, removed
 member, bulk revocation, a scope the token has and the grant doesn't.

@@ -317,7 +317,9 @@ indicador grosseiro — linha não mede dificuldade —, o lado do protocolo
 `http.ts`) soma **1.497 linhas**. O lado da identidade (configuração e
 gateway do OAuth, concessão, consentimento, rotas e telas de Apps
 conectados, services e repositórios de concessão e de cliente OAuth) soma
-**2.575**. A onda de 17/10 tem **26 arquivos de teste** dedicados, de
+**2.938** na `2026.10.18.4` — eram 2.575 antes da correção da tela de
+consentimento, e as 363 linhas a mais são todas do lado da identidade; o
+do protocolo não mudou. A onda de 17/10 tem **26 arquivos de teste** dedicados, de
 unitário a e2e contra o Postgres, e boa parte dos casos é de identidade:
 token vencido, concessão de outro cliente, membro removido, revogação em
 lote, escopo que o token tem e a concessão não.
