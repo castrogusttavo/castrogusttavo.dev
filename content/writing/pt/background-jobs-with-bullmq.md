@@ -79,11 +79,27 @@ queue.add(AccountLifecycleJob.DeleteAccount, { userId }, {
 })
 ```
 
-Isso dá cancelamento de graça: `cancelAccountDeletion(userId)` chama
-`queue.remove(jobId)` — se o job não existe mais (porque já rodou, ou nunca
-existiu), o remove é um no-op, e a função retorna `false` em vez de lançar.
-Cancelar uma exclusão de conta que ninguém agendou não é erro, é
-idempotente por construção.
+A ideia era ganhar cancelamento de graça: `cancelAccountDeletion(userId)`
+chama `queue.remove(jobId)`, e cancelar uma exclusão que ninguém agendou não
+deveria ser erro.
+
+> **Correção (17/11/2026):** o que eu escrevi aqui sobre o `remove()` estava
+> errado. Ele não devolve `false` para job inexistente: responde `1` sempre
+> que o job não está travado, exista ou não, então o cancelamento sempre
+> relatava sucesso. Hoje a existência é lida com `getJob()` antes. O mesmo
+> `jobId` fixo tinha o problema espelhado: o BullMQ mantém o primeiro job e
+> descarta o `add()` seguinte, então reagendar não mudava o prazo. Os dois
+> foram corrigidos em
+> [`220ad51b`](https://github.com/castrogusttavo/nexo/commit/220ad51b054e34dfd4ddde040726034839ce703b),
+> e a história está em
+> [A exclusão de conta que nunca excluiu ninguém](/pt/writing/account-deletion-that-never-deleted).
+>
+> E havia um defeito maior na mesma fila: até
+> [`94d044f`](https://github.com/castrogusttavo/nexo/commit/94d044f26d0b4e7f96d4e5684a4d0c9780e5acb9),
+> o próprio `delete-account` falhava para qualquer usuário que tivesse criado
+> conteúdo (uma chave estrangeira sem `onDelete` fazia o Postgres recusar), e o
+> retry com backoff descrito abaixo só repetia a mesma falha três vezes, sem
+> alarme nenhum.
 
 O consumidor não roda dentro do Next. É um processo Node próprio
 (`worker/index.ts`) que importa services e repositories diretamente — os
