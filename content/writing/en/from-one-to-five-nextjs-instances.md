@@ -156,7 +156,13 @@ done
 That's already the five-instance version. The same day the VM went from 4
 to 6 physical cores (12 vCPU) and from 7.6 to 12 GB, and commit `6208b16e`
 went to five: five cores for Next, one for Postgres, Redis, nginx and the
-rest, ~5.5 GB of RAM under load.
+rest, ~5.5 GB of RAM under load. The production `upstream` is versioned in
+`infra/nginx/nexo-upstream.conf`
+([`fa3d1878`](https://github.com/castrogusttavo/nexo/commit/fa3d1878)):
+`least_conn` over `127.0.0.1:3001` to `3005`, each with
+`max_fails=3 fail_timeout=10s`. An instance that fails three times in 10
+seconds leaves the rotation for 10 seconds, which is what lets the rolling
+deploy swap one at a time without errors reaching users.
 
 ### What breaks when the process stops being one
 
@@ -246,7 +252,9 @@ could prerender. `/pricing`'s static shell was an empty `<body>` and its
 took request reads out of the root layout (cookie consent read in the
 browser; signed-in users go from `/` to `/home`), and `164c94b1` moved
 compression from Node to nginx: locally, static pages went from 16.6 to 6.2
-ms of CPU per request from that alone. Later, `26690cfc` removed ~550
+ms of CPU per request from that alone (no k6 run in this post asked for
+compression, so that part doesn't show in the tables; more in the
+limitations). Later, `26690cfc` removed ~550
 repeated icons from the pricing table, taking `/pricing` from 1.04 MB to
 653 KB of HTML.
 
@@ -268,11 +276,22 @@ average, ~35% fewer requests per VU than 5-7 s) and a target of p95 <
 |---|---|---|
 | 1 instance, 8 vCPU | ~400 | `d5626518` commit message |
 | 3 instances, 8 vCPU | 800 | `6208b16e` commit message |
+| 5 instances, 12 vCPU, pages not yet fixed | ~1,200 VUs: p95 445 ms / p99 939 ms, ~124 req/s | session note, Oct 16 (no raw output) |
 | 5 instances, 12 vCPU, pages fixed | 1,200 VUs: p95 137 ms / p99 238 ms | test notes, Oct 16 |
-| same | 1,600 VUs: p95 542 ms / p99 1.18 s (just over) | test notes, Oct 16 |
+| same | 1,600 VUs: p95 542 ms / p99 1.18 s (just over target) | test notes, Oct 16 |
 
-From ~400 to ~1,500 users within target, zero errors, with the load
-generator competing with the app for CPU.
+The third row comes from my session note; I didn't keep the raw output of
+that run. It's the row that separates the two effects: with pages still
+expensive, one, three and five instances gave ~400, 800 and ~1,200 users
+within target; with pages fixed, the same five instances went from ~1,200
+to ~1,500. The caveat: between three and five instances the VM also went
+from 8 to 12 vCPU, so the 800 to 1,200 step is instances and hardware
+together.
+
+The ~1,500 isn't a run: it's interpolated between 1,200 VUs, which passed
+comfortably, and 1,600, which missed the target by a little. I ran nothing
+in between. From ~400 to ~1,500 users within target, zero errors in the
+runs I kept, with the load generator competing with the app for CPU.
 
 ### From outside, along a user's path
 
@@ -311,24 +330,35 @@ Cloudflare's São Paulo (GRU) edge, and the API came in at **300 ms p95**
 
 ## Where it broke, and what this test doesn't measure
 
-**The generator is far away, and one number I relied on is inflated by my
-own bug.** The GitHub runner is outside Brazil and every request pays ~220
-ms of network before the server does anything. That I knew. What I didn't
-know until writing this: the header meant to request compression in
-`k6/load.js` is spelled `'Accept-Enconding'`, with an extra "n", since the
-commit that added it. k6 never asked for compression. Bytes received agree:
-~185 KB per request on average in the October 16 runs (~157 KB after the
-smaller `/pricing`), consistent with raw HTML, not the ~42 KB a compressed
-page weighs. So the "~1 s of network" on pages measured from the runner
-isn't just distance: it's half a megabyte without gzip crossing a
-continent. API numbers, being small JSON, are far less affected. It gets
-fixed before the next round, and runner vs local page numbers shouldn't be
-read as pure network cost.
+**The generator is far away, and no run asked for compression.** The
+GitHub runner is outside Brazil and every request pays ~220 ms of network
+before the server does anything. That I knew. What I only found out while
+writing this: the header meant to request compression in `k6/load.js` was
+spelled `'Accept-Enconding'`, with an extra "n", since the commit that added
+it. The server got a header it doesn't know, and k6 sends no
+`Accept-Encoding` by default, so no run in this post, on-host or from
+GitHub, asked for a compressed response. Bytes received agree: ~185 KB per
+request on average in the October 16 runs (~157 KB after the smaller
+`/pricing`), consistent with raw HTML, not the ~42 KB a compressed page
+weighs. I fixed the header after the runs, in
+[`f7dd4444`](https://github.com/castrogusttavo/nexo/commit/f7dd4444).
+
+What that means for the measured numbers: all of them are uncompressed
+responses, before and after. Moving compression from Node to nginx
+(`164c94b1`) doesn't show in any table, because in these tests neither Node
+nor nginx compressed anything; the page gains in the numbers are from
+prerendering and smaller HTML. And the "~1 s of network" on pages measured
+from the runner isn't just distance: it's half a megabyte without gzip
+crossing a continent. API numbers, being small JSON, are far less affected.
+Runner vs local page numbers shouldn't be read as pure network cost, and the
+next round, now asking for compression, won't be comparable byte for byte
+with these.
 
 **Generating load next to the server isn't clean either.** The on-host
 numbers ran k6 on the same VM serving Nexo, competing with five instances,
 Postgres and nginx's TLS. That makes them pessimistic for the server, but
-"~1,500 users within target" was measured on a host doing two jobs at once.
+"~1,500 users within target" (interpolated, as above) was measured on a
+host doing two jobs at once.
 And my own machine, 4 cores on a residential connection, can't generate
 1,500 VUs: I tried, and got 44% failures from generator timeouts. It's only
 good for measuring with a few VUs while something else generates the load.
@@ -346,14 +376,16 @@ current one exercises the authenticated API, not private page rendering.
 
 **The on-host numbers have no public run.** The GitHub ones anyone can
 check: run id, JSON artifact, log. The on-host k6 ones, no: they live in
-commit messages and my notes, and I didn't cleanly separate how much of the
-gain came from five instances and how much from cheaper pages, because I
-changed both the same day. The heap snapshot was also taken locally, on a
-reproduction with 200 VUs for 4 minutes, not in production; in production
-what I have is the RSS curve before and after. And the production nginx
-`upstream` config isn't versioned in the repo (only the Cloudflare real-IP
-one is), so the `least_conn` I describe you'll have to take on trust for
-now.
+commit messages and my notes. And the point that separates instances from
+pages, five instances with unfixed pages, is the weakest of them: it exists
+only in my session note, without raw output, and the VM changed size in the
+same step. The split is approximate, not clean. The heap snapshot was also
+taken locally, on a reproduction with 200 VUs for 4 minutes, not in
+production; in production what I have is the RSS curve before and after.
+The nginx `upstream`, on the other hand, you can check: it's versioned
+since `fa3d1878`, copied from the server on October 18, after the tests.
+Deploys don't apply it; the file in the repo is the reference, and
+installing it on the host is still manual.
 
 **Per-instance state isn't gone, just inventoried.** Rate limits and
 connections are solved. `'use cache'` was worked around page by page, not
@@ -380,7 +412,8 @@ memory.
 
 It doesn't prove how many real users Nexo can take: the scenario doesn't
 browse signed-in pages, doesn't download assets and runs at a pace I
-chose. It doesn't separate how much of the gain is instances versus cheaper
-pages. It doesn't prove 160 req/s is the current hardware's ceiling, since
+chose. It separates instances from cheaper pages only roughly, with one
+point that comes from a note without raw output and a VM that grew in
+between. It doesn't prove 160 req/s is the current hardware's ceiling, since
 none of the outside tests saturated it. And it says nothing about deploying
 under load, because no deploy happened during a test.
