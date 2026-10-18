@@ -369,8 +369,8 @@ mexeu na cor depois de mim, o meu desfazer pula a cor e o editor avisa:
 campo." Um passo que fica sem nada para aplicar sai do histórico, como o
 passo de nó removido já saía. A expectativa é recalculada depois de cada
 ida e volta, então o refazer contém só o que o desfazer de fato desfez.
-Antes da correção, um teste com dois clientes intercalando edições falhou
-6 de 6 vezes; o binding ganhou ainda um teste de propriedade aleatório
+Dos seis testes novos com dois clientes intercalando edições, cinco
+falhavam antes da correção; o binding ganhou ainda um teste de propriedade aleatório
 com o invariante de que um desfazer ou refazer só muda um campo que ainda
 está como aquela pessoa deixou.
 
