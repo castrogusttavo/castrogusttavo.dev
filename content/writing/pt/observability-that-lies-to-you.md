@@ -176,7 +176,7 @@ contra um release descartável (apagado em seguida) confirmou o ciclo inteiro:
 depois **zero** arquivos `.map` e **zero** comentários `sourceMappingURL`
 sobrando em `.next/static`.
 
-### GPC: a trava era nossa
+### GPC: a trava era minha
 
 Depois disso tudo, ainda aparecia um sintoma intermitente: às vezes um
 navegador real, não automatizado, não mandava nada. A causa era uma linha que
@@ -193,21 +193,28 @@ produção:
 | GPC ligado | `unspecified` | `true` | **0** |
 | DNT ligado | `1` | `false` | **0** |
 
-O GPC vem ligado por padrão no Firefox com proteção "Rigorosa" e em janelas
-privadas, e no Brave. Na prática: a Nexo pedia consentimento, a pessoa clicava
-"Aceitar", e nós descartávamos a escolha dela em silêncio.
+O GPC vai ligado por padrão nas janelas privadas do Firefox e no Brave. Na
+prática: a Nexo pedia consentimento, a pessoa clicava "Aceitar", e eu
+descartava a escolha dela em silêncio.
 
-Decidi remover a trava (commit "stop a browser privacy signal from overriding
-consent", `respect_dnt: false`). O raciocínio, que é meu e não é parecer
-jurídico: o GPC é uma construção da CCPA, a lei de privacidade da
-Califórnia, sobre **venda ou compartilhamento** de dados pessoais, coisa que
-a Nexo não faz. A nossa política de privacidade já dizia que não
-respondemos a Do Not Track e que o GPC é honrado "quando exigido pela
-legislação aplicável". O código estava mais restritivo que o próprio texto
-publicado, e essa diferença custava dado sem proteger ninguém de nada que o
-texto prometesse. O portão que importa continua lá, e continua verificado: sem
+Um "Aceitar" explícito vence um padrão do navegador. Foi com essa regra que
+removi a trava ([`f5369d75`](https://github.com/castrogusttavo/nexo/commit/f5369d75), "stop a browser privacy signal
+from overriding consent", `respect_dnt: false`). O raciocínio é meu e não é
+parecer jurídico: o GPC é um sinal do navegador que a CCPA, a lei de privacidade da
+Califórnia, reconhece como recusa à
+**venda ou compartilhamento** de dados pessoais, coisa que a Nexo não faz.
+Depois alinhei o texto ao código ([`c35f0342`](https://github.com/castrogusttavo/nexo/commit/c35f0342), que também
+corrigiu o comentário do PostHog). A política de privacidade agora diz:
+"Não compartilhamos informações pessoais para fins de publicidade, com ou sem
+sinal de GPC." O portão que importa continua lá, e continua verificado: sem
 cookie de consentimento, ou com um cookie de recusa, o SDK nem carrega e nada
 é enviado.
+
+Isso tem um custo que prefiro dizer em público: hoje a Nexo não honra o GPC
+para analytics. O consentimento depende só do banner explícito; quem navega
+com GPC ligado e clica em "Aceitar" é medido como qualquer outra pessoa. Já
+estou resolvendo isso, para que o GPC também conte como sinal na coleta de
+analytics.
 
 ### Só depois disso: o funil
 
@@ -296,6 +303,6 @@ Não prova que a observabilidade da Nexo está completa agora. A verificação d
 PostHog não está automatizada, o upload de source maps no CD não foi
 observado diretamente, e o funil enxerga só quem consentiu. Também não prova
 que a decisão sobre o GPC vale para outro produto: ela se apoia no fato de a
-Nexo não vender nem compartilhar dados e no que a nossa política já dizia. O
+Nexo não vender nem compartilhar dados e no que a política de privacidade dela diz. O
 que eu levo daqui é um hábito, não uma garantia: antes de confiar num zero,
 provar que o instrumento é capaz de mostrar um positivo.

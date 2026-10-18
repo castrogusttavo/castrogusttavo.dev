@@ -170,7 +170,7 @@ throwaway release (deleted afterwards) confirmed the whole cycle:
 then **zero** `.map` files and **zero** `sourceMappingURL` comments left in
 `.next/static`.
 
-### GPC: the lock was ours
+### GPC: the lock was mine
 
 After all that, an intermittent symptom remained: sometimes a real,
 non-automated browser sent nothing. The cause was a line I had written:
@@ -187,19 +187,27 @@ production:
 | GPC on | `unspecified` | `true` | **0** |
 | DNT on | `1` | `false` | **0** |
 
-GPC is on by default in Firefox under "Strict" protection and in private
-windows, and in Brave. In practice: Nexo asked for consent, the person
-clicked "Accept", and we silently discarded their choice.
+GPC is on by default in Firefox private windows and in Brave. In practice:
+Nexo asked for consent, the person clicked "Accept", and I silently
+discarded their choice.
 
-I decided to remove the lock (commit "stop a browser privacy signal from
-overriding consent", `respect_dnt: false`). The reasoning is mine, not legal
-advice: GPC is a construct of the CCPA, California's privacy law, about the
-**sale or sharing** of personal data, which Nexo doesn't do. Our privacy
-policy already said we don't respond to Do Not Track and that GPC is honoured
-"when required by applicable law". The code was stricter than our own
-published text, and that gap cost data without protecting anyone from
-anything the text promised. The gate that matters is untouched and still
-verified: no consent cookie, or a refusing one, and the SDK doesn't even load.
+An explicit "Accept" beats a browser default. That's the rule I used to
+remove the lock ([`f5369d75`](https://github.com/castrogusttavo/nexo/commit/f5369d75), "stop a browser privacy signal
+from overriding consent", `respect_dnt: false`). The reasoning is mine, not
+legal advice: GPC is a browser signal that the CCPA,
+California's privacy law, recognises as an opt-out of the **sale or
+sharing** of personal data, which Nexo doesn't do. I then brought the text in
+line with the code ([`c35f0342`](https://github.com/castrogusttavo/nexo/commit/c35f0342), which also corrected the
+PostHog comment). The privacy policy now reads: "Não compartilhamos
+informações pessoais para fins de publicidade, com ou sem sinal de GPC."
+(We don't share personal information for advertising, with or without a GPC
+signal.) The gate that matters is untouched and still verified: no consent
+cookie, or a refusing one, and the SDK doesn't even load.
+
+That has a cost I'd rather state publicly: today Nexo doesn't honour GPC for
+analytics. Consent depends only on the explicit banner; someone browsing with
+GPC on who clicks "Accept" is measured like anyone else. I'm already working
+on it, so that GPC also counts as a signal for analytics collection.
 
 ### Only then: the funnel
 
@@ -285,6 +293,6 @@ It doesn't prove Nexo's observability is complete now. The PostHog check
 isn't automated, the CD source map upload wasn't observed directly, and the
 funnel only sees people who consented. Nor does it prove the GPC decision
 carries over to another product: it rests on Nexo not selling or sharing data
-and on what our policy already said. What I take from it is a habit, not a
+and on what its privacy policy says. What I take from it is a habit, not a
 guarantee: before trusting a zero, prove the instrument is able to show a
 positive.
