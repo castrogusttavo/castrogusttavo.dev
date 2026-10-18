@@ -76,7 +76,7 @@ checkout respondia 502, e a página de status seguia verde, porque a sonda
 de pagamento só considerava falha um 5xx — um 401 era lido como "o
 gateway respondeu, então está de pé" (`ec8273ac`, "treat a rejected
 payment credential as the outage it is"). Do lado do cliente, um gateway
-que a gente não consegue usar e um gateway fora do ar são a mesma queda.
+que eu não consigo usar e um gateway fora do ar são a mesma queda.
 
 ## A ideia: uptime é "respondeu", latência é outro sinal
 

@@ -71,7 +71,7 @@ production AbacatePay key had gone invalid, every checkout answered 502,
 and the status page stayed green, because the payment probe only treated
 5xx as failure — a 401 read as "the gateway answered, so it's up"
 (`ec8273ac`, "treat a rejected payment credential as the outage it is").
-From the customer's side, a gateway we can't use and a gateway that's down
+From the customer's side, a gateway I can't use and a gateway that's down
 are the same outage.
 
 ## The idea: uptime means "answered," latency is a separate signal
@@ -83,7 +83,7 @@ Split the two questions that had been folded into one number:
 - **Did it answer fast enough *for itself*?** That's degradation, judged
   against each component's own physics, and it has to persist to count.
 
-And in the probes, ask "can we use it?" instead of "is the process alive?"
+And in the probes, ask "can I use it?" instead of "is the process alive?"
 
 ## How it works
 
@@ -138,7 +138,7 @@ that declares an outage over one packet teaches everyone to ignore it. The
 error reported is the first attempt's, which is usually the diagnostic
 one.
 
-### Probes that ask "can we use it?"
+### Probes that ask "can I use it?"
 
 The app probe now makes a real HTTP request to the public URL's
 `/api/health`, covering DNS, nginx, TLS and the proxy. Storage swapped the
@@ -189,13 +189,13 @@ nothing checked the number it produced either. That's another post.
 **A line that was a lie.** Reviewing the status page turned up a storage
 component named "Storage (AWS S3)" and a sub-processors page saying files
 lived at Amazon. Nexo never used S3: `src/lib/storage/s3.ts` talks to
-storage on our own server. Both lines went (`98df9245`, `f2765330`), and
+storage on Nexo's own server. Both lines went (`98df9245`, `f2765330`), and
 the sub-processors page gained the three third parties that do receive
 data and weren't listed — Slack, Backblaze B2 and Better Stack — plus the
-sentence it was missing: the app, the database and the files live on our
+sentence it was missing: the app, the database and the files live on Nexo's
 own server in São Paulo, and only backups leave the country. A page whose
-entire job is telling the truth about our infrastructure can't name a
-vendor we don't use.
+entire job is telling the truth about my infrastructure can't name a
+vendor I don't use.
 
 ## Results
 
@@ -292,7 +292,7 @@ Storage came back at 18:48 UTC on October 18.
 
 It proves a bad uptime number can be entirely a measurement defect: same
 Resend, same requests, and the page went from 51.7% to 99.7% with nothing
-changing on the service's side. It proves "the process is alive" and "we
+changing on the service's side. It proves "the process is alive" and "I
 can use it" are different questions — and that a probe asking only the
 first lets through exactly the failures customers feel, like AbacatePay's
 rejected credential.
