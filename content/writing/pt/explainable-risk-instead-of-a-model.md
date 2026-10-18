@@ -1,6 +1,6 @@
 ---
 title: Risco explicável em vez de um modelo — prever violação de SLA com uma tabela de pontos
-description: "Para avisar antes de o SLA estourar, a resposta óbvia era treinar um modelo com o histórico de chamados. No ServiceDesk do Steel a decisão foi outra: nove fatores com peso fixo, soma travada em 100 por teste, cortes em 40 e 70, e cada fator gravando a frase que explica a nota. Isto é o algoritmo, um chamado calculado à mão, o que ele é formalmente, como o agrupamento de incidentes repetidos monta a assinatura — e o fato de ainda não existir backtest nenhum."
+description: "Para avisar antes de o SLA estourar, a resposta óbvia era treinar um modelo com o histórico de chamados. No ServiceDesk do Steel a decisão foi outra: nove fatores com peso fixo, soma travada em 100 por teste, cortes em 40 e 70, e cada fator gravando a frase que explica a nota. Isto é o algoritmo, um chamado calculado à mão, o que ele é formalmente, como o agrupamento de incidentes repetidos monta a assinatura — e as quatro lacunas que escrever este post expôs, já corrigidas, incluindo um backtest que existe mas ainda não rodou contra dado real."
 icon: idea
 date: "2026-12-10"
 ---
@@ -56,7 +56,7 @@ cada um com um peso máximo, somando 100:
 | `sla_consumed` | % do prazo consumido (minutos úteis) | **30** | rampa de 50% a 100%; violado = cheio |
 | `unassigned` | chamado sem responsável | **12** | rampa de 0 a 4 h desde a abertura |
 | `priority` | prioridade ou severidade | **12** | posição na escala do workspace |
-| `stale` | tempo desde a última interação | **12** | rampa de 8 h a 48 h |
+| `stale` | tempo desde a última interação da equipe | **12** | rampa de 8 h a 48 h |
 | `reopened` | reaberturas | **8** | 1 reabertura = metade, 2 = cheio |
 | `queue_pressure` | fila do departamento | **8** | 0 na média, cheio em 2× a média |
 | `waiting_third_party` | fase de espera com o relógio correndo | **6** | tudo ou nada |
@@ -127,7 +127,16 @@ assumir que todo mundo usa P1–P4.
 
 O prazo também é do workspace: `sla_consumed` usa o mesmo relógio do
 módulo de SLA, em minutos úteis sobre o calendário de expediente e
-descontando pausas de fase. Relógio pausado não pontua.
+descontando pausas de fase. Relógio pausado não pontua. E são dois
+relógios: o de resolução, sempre que tem prazo, e o de 1ª resposta,
+enquanto ninguém respondeu. O fator pontua pelo **mais urgente** dos dois
+(violado vence qualquer porcentagem), e a previsão de estouro
+(`breachEtaAt`) é o prazo que vence **primeiro**.
+
+"Interação", em `stale`, é da equipe: o worker lê o último evento de
+agente do chamado (`actorKind = AGENT`). Mensagem do cliente, ação do
+Steel AI e evento de sistema não contam — se a equipe nunca agiu, o
+silêncio conta desde a abertura.
 
 ### Calculado no worker, lido pronto na tela
 
@@ -148,34 +157,43 @@ notificação são as frases dos três primeiros fatores, não a nota.
 
 Um chamado hipotético, para ver os números saírem da tabela:
 
-- aberto há 6 h, num horário em que o relógio de SLA está correndo, com
-  prazo de resolução de 8 h úteis → **75%** do prazo consumido;
-- ninguém assumiu;
+- aberto há 6 h, num horário em que o relógio de SLA está correndo;
+- a política dá 4 h úteis para a 1ª resposta e 8 h úteis para a
+  resolução → 1ª resposta **violada** há 2 h, resolução em **75%**;
+- ninguém assumiu, ninguém respondeu;
 - prioridade `P2`, nível 3 numa escala que vai até 4;
-- nenhuma interação desde a abertura;
+- nenhuma ação da equipe desde a abertura;
 - o departamento tem 14 chamados abertos; a média dos departamentos do
   workspace é 8;
 - o cliente já teve um prazo violado antes; o serviço, não.
 
 | Fator | Conta | Pontos | Frase gravada |
 |---|---|---|---|
-| `sla_consumed` | (75 − 50) / (100 − 50) = 0,5 × 30 | **15** | "75% do prazo de resolução consumido (em horário útil)" |
+| `sla_consumed` | 1ª resposta violada → peso cheio, 1 × 30 | **30** | "Prazo de 1ª resposta já violado" |
 | `unassigned` | 6 h / 4 h → satura em 1 × 12 | **12** | "Sem responsável há 6 h" |
 | `priority` | (3 − 1) / (4 − 1) = 0,667 × 12 | **8** | "Prioridade P2" |
 | `stale` | 6 h < 8 h → rampa ainda em 0 | — | — |
 | `queue_pressure` | (14 − 8) / 8 = 0,75 × 8 | **6** | "Fila do time com 14 chamados abertos (média do workspace: 8)" |
 | `history` | só o cliente → 0,5 × 6 | **3** | "Este cliente já teve prazo violado antes" |
-| **Total** | | **44** | `MEDIUM` |
+| **Total** | | **59** | `MEDIUM` |
 
-Quarenta e quatro pontos, faixa média, e quatro frases que o agente
-consegue conferir olhando o chamado. Ninguém precisa acreditar no
+Cinquenta e nove pontos, faixa média, e cinco frases que o agente
+consegue conferir olhando o chamado. A previsão de estouro aponta para o
+prazo de 1ª resposta, que já passou, e não para a resolução, que ainda
+tem 2 h. Ninguém precisa acreditar no
 número: dá para responder "por que este chamado está amarelo" lendo uma
 linha do banco, que é exatamente a consequência que a ADR queria.
 
-O mesmo exemplo mostra uma propriedade menos óbvia da tabela. Se o
-chamado seguir parado até estourar o prazo, `sla_consumed` vai a 30 e a
-nota sobe para perto de **60** (59, mais o ponto que `stale` passa a
-valer depois de 8 h) — ainda `MEDIUM`. O fator mais pesado satura em 30;
+Refiz essa conta à mão (e conferi rodando a lib) depois das correções
+da seção "Onde quebrou".
+Na versão anterior, o mesmo chamado dava **44**: o fator de prazo só
+olhava o relógio de resolução (75% → 15 pontos) e a 1ª resposta
+estourada não aparecia em lugar nenhum da nota.
+
+O exemplo também mostra uma propriedade menos óbvia da tabela. Se o
+chamado seguir parado até estourar também o prazo de resolução, a nota
+vai a **60** (os mesmos 59, mais o ponto que `stale` passa a valer depois
+de 8 h) — ainda `MEDIUM`. O fator mais pesado satura em 30;
 chegar a `HIGH` (70) exige pelo menos 40 pontos vindos dos outros oito.
 O caso de teste que acerta 70 em cheio é justamente isso: prazo violado
 (30) + sem responsável (12) + prioridade máxima (12) + parado há 48 h ou
@@ -236,9 +254,15 @@ Os termos saem do título assim:
    stopwords: palavras de ligação do português e os verbos genéricos de
    chamado (`urgente`, `favor`, `chamado`, `problema`, `erro`, `ajuda`,
    `preciso`…);
-3. remove repetidos, **ordena alfabeticamente** e fica com no máximo **4**.
+3. remove repetidos e, se sobrarem mais de **4**, fica com os 4 mais
+   relevantes: primeiro o termo que mais se repete no próprio título,
+   depois o que aparece em mais incidentes da **janela de observação**; a
+   ordem alfabética só desempata;
+4. põe os escolhidos em ordem alfabética.
 
-A ordenação é o que faz "Servidor de e-mail fora do ar" e "E-mail fora do
+Frequência na janela, e não tf-idf, foi de propósito: o idf premia o
+termo raro, que é justamente o que não se repete e portanto não forma
+grupo. E a ordenação final é o que faz "Servidor de e-mail fora do ar" e "E-mail fora do
 ar no servidor" caírem no mesmo grupo: os dois viram `fora-mail-servidor`.
 Título sem nenhum termo significativo ("urgente!!!") não gera assinatura
 — agrupar todos esses juntaria chamados que não têm nada a ver.
@@ -258,8 +282,9 @@ disse "não" seria ignorado a cada hora.
 O que este trabalho entrega de verificável é o contrato, não a precisão:
 
 - **9 fatores**, pesos somando **100**, travados por teste;
-- **80 testes** nas três libs puras (`risk.ts`, `risk-compute.ts`,
-  `incident-cluster.ts`), todos passando, incluindo os cortes exatos
+- **117 testes** nas quatro libs puras (`risk.ts`, `risk-compute.ts`,
+  `incident-cluster.ts` e o novo `risk-backtest.ts`; eram 80 nas três
+  primeiras antes das correções), todos passando, incluindo os cortes exatos
   (nota 40 cai em `MEDIUM`, 70 em `HIGH`) e o teto de 100 com todos os
   fatores no máximo;
 - cada previsão gravada carrega as frases dos fatores, então toda nota é
@@ -269,25 +294,85 @@ O que este trabalho entrega de verificável é o contrato, não a precisão:
 
 A comparação contra a alternativa — um modelo treinado, ou mesmo o
 estado "em risco" que o módulo de SLA já tinha (por padrão, a partir de
-80% do prazo) — **não existe**. Procurei: o repositório não tem
-avaliação, backtest, nem medida de precisão ou recall desta heurística.
+80% do prazo) — **ainda não existe**. A ferramenta para medir agora
+existe (`pnpm risk:backtest`, abaixo), mas ainda não rodou contra dado
+real, então não tenho número de precisão, recall ou calibração para
+mostrar.
 
-## Onde quebra
+## Onde quebrou, e o que já foi corrigido
 
-**Não há backtest.** É a limitação mais importante, e a causa raiz é
-de desenho: os pesos e cortes foram escolhidos, não ajustados. Ninguém
-rodou a heurística sobre chamados já encerrados para ver quantos dos que
-ela marcou como `HIGH` de fato violaram, e quantos dos que violaram ela
-deixou em `LOW`. Sem isso, "40" e "70" são julgamento, não evidência. O
-exemplo acima mostra que a tabela pode deixar um chamado já violado, sem
-responsável, em `MEDIUM` — pode ser exatamente o comportamento certo, ou
-não. Não dá para saber sem rodar contra o histórico. E o histórico para
-isso existe: os chamados encerrados guardam o rótulo de violação. O
-custo de fazer é baixo; ele só não foi pago.
+Escrever este post, com o código aberto do lado, expôs quatro lacunas.
+As quatro foram corrigidas no
+[steel-so/steel#128](https://github.com/steel-so/steel/pull/128) e estão
+em homologação desde 18/10/2026 (Steel `2026.10.18.4`). Pesos, faixas e
+o formato dos fatores não mudaram; a ADR 0016 ganhou uma nota de
+atualização em vez de ser reescrita.
+
+### O que foi corrigido
+
+**"Sem interação da equipe" contava qualquer interação.** O fator
+`stale` lia `lastActivityAt`, que também anda quando o **cliente** manda
+mensagem pelo portal, por e-mail ou WhatsApp. A frase dizia "Sem
+interação da equipe há X", mas o cliente cobrando "alguma novidade?"
+zerava a rampa — a nota caía justamente quando a insatisfação subia.
+Agora o worker busca o último evento de agente de cada chamado, numa
+consulta por lote de 200; Steel AI e sistema não contam. Se essa
+consulta falhar, o lote volta ao comportamento antigo em vez de tratar
+todo chamado como abandonado.
+
+**Só um relógio contava.** O fator de prazo usava o timer de resolução
+sempre que ele existia e só caía para o de 1ª resposta quando não havia
+prazo de resolução. Um chamado a 95% do prazo de 1ª resposta e a 30% do
+de resolução pontuava zero em `sla_consumed`, e a previsão de estouro
+mostrava o prazo mais distante. Agora os dois entram enquanto ninguém
+respondeu, o fator usa o mais urgente e a previsão usa o que vence
+primeiro — é a diferença entre 44 e 59 no chamado calculado à mão.
+
+**A assinatura cortava os termos em ordem alfabética.** Com mais de 4
+termos, ficavam os 4 primeiros do alfabeto, não os mais informativos.
+"VPN cai ao acessar sistema financeiro remoto" virava
+`acessar-cai-financeiro-remoto`, e o mesmo título sem "remoto" virava
+`acessar-cai-financeiro-sistema`, outro grupo. Agora o corte é por
+frequência no título e na janela. Com esses dois chamados sozinhos na
+janela, `remoto` aparece em um só e sai: os dois viram
+`acessar-cai-financeiro-sistema` e caem no mesmo grupo. O `vpn`, porém,
+continua de fora nesse caso — empata com `acessar`, `cai`, `financeiro`
+e `sistema` (todos em dois chamados) e perde no desempate alfabético. Ele
+só entra quando se repete na janela mais do que os outros: com um
+terceiro chamado, "VPN caindo no sistema financeiro", os dois primeiros
+viram `acessar-financeiro-sistema-vpn` (o terceiro vira
+`caindo-financeiro-sistema-vpn` — sem stemming, `cai` e `caindo` são
+termos diferentes).
+
+**Não havia backtest.** Os pesos e cortes foram escolhidos, não
+ajustados, e ninguém tinha rodado a heurística sobre chamados encerrados.
+Agora existe `pnpm risk:backtest`, que só lê o banco. Para cada chamado
+encerrado com prazo, ele tira três fotos — a 25%, 50% e 75% do caminho
+entre a abertura e a violação (ou o encerramento) —, recalcula a nota com
+o que se sabia em cada instante e compara a faixa prevista com o
+desfecho real: calibração por faixa (taxa real de violação em `LOW`,
+`MEDIUM` e `HIGH`), precisão e recall da faixa alta como alarme, e
+antecedência — quanto tempo antes da violação o chamado entrou em
+`HIGH`.
+
+### O que continua quebrado
+
+**O backtest existe, mas ainda não tem resultado.** Ele não rodou contra
+dado real, então não há número de calibração para citar: "40" e "70"
+continuam sendo julgamento, não evidência. O exemplo acima mostra que a
+tabela deixa um chamado com a 1ª resposta estourada, sem responsável, em
+`MEDIUM` — pode ser o comportamento certo, ou não, e só o histórico vai
+dizer. E mesmo quando rodar, o número vai sair enviesado para baixo em
+três fatores. A causa raiz é que o histórico do chamado não é
+versionado: o script não reconstrói a fase nem a pausa de SLA de cada
+instante passado (assume fase em andamento com o relógio correndo) e
+reconta fila e carga só com os chamados da amostra. Por isso
+`waiting_third_party`, `queue_pressure` e `assignee_load` saem
+subestimados.
 
 **A nota não é probabilidade.** A ADR trava a soma em 100 para a nota
 ser "legível como porcentagem" — porcentagem do máximo de pontos, não
-chance de violar. 44 não quer dizer 44%. Na prática nem 100 é alcançável:
+chance de violar. 59 não quer dizer 59%. Na prática nem 100 é alcançável:
 `unassigned` e `assignee_load` são mutuamente exclusivos (um exige não ter
 responsável, o outro exige ter), então o teto real é **94** para chamado
 sem responsável e **88** para chamado com.
@@ -298,26 +383,11 @@ quase sempre também está parado e consumindo prazo — três fatores
 somando pontos pelo mesmo fato. Uma regressão absorveria isso nos pesos;
 uma tabela escrita à mão, não.
 
-**Só um relógio conta.** O fator de prazo usa o timer de resolução
-sempre que ele existe, e só cai para o de 1ª resposta quando não há
-prazo de resolução. Um chamado a 95% do prazo de 1ª resposta e a 30% do
-de resolução pontua zero em `sla_consumed`. O módulo de SLA continua
-marcando o timer de 1ª resposta como em risco por conta própria, mas a
-nota preditiva não enxerga isso.
-
-**"Sem interação da equipe" conta qualquer interação.** O fator `stale`
-lê `lastActivityAt`, que é atualizado também quando o **cliente** manda
-mensagem por WhatsApp ou e-mail. A frase diz "Sem interação da equipe há
-X", mas o cliente cobrando "alguma novidade?" zera a rampa — a nota cai
-justamente quando a insatisfação sobe.
-
-**A assinatura de incidentes é frágil nas bordas.** Ela trunca para os 4
-primeiros termos **em ordem alfabética**, não os 4 mais informativos.
-"VPN cai ao acessar sistema financeiro remoto" vira
-`acessar-cai-financeiro-remoto` — o termo `vpn`, o mais distintivo do
-título, fica de fora; e o mesmo título sem a palavra "remoto" vira
-`acessar-cai-financeiro-sistema`, outro grupo. Não há stemming
-("impressora" e "impressoras" são termos diferentes), o corpo do chamado
+**A assinatura de incidentes ainda é frágil nas bordas.** O corte por
+frequência tem um custo aceito: a assinatura de um título com mais de 4
+termos pode mudar conforme a janela muda — o corte alfabético era
+estável, só que arbitrário. Não há stemming ("impressora" e
+"impressoras" são termos diferentes), o corpo do chamado
 é ignorado, e um incidente categorizado errado nunca encontra o grupo
 dos certos, porque categoria, subcategoria e serviço fazem parte da
 chave. A escolha por igualdade exata foi deliberada — dá para explicar
@@ -333,9 +403,11 @@ a tela mostra, e qualquer "por que está vermelho" se responde lendo uma
 linha. E deixa o formato pronto para uma calibração futura sem mudar
 contrato — o que é desenho, não resultado.
 
-Não prova que a heurística prevê bem. Não há medida de precisão nem de
-recall, não há comparação com o estado "em risco" que já existia, e os
-cortes 40 e 70 nunca foram confrontados com um chamado encerrado. O que
+Não prova que a heurística prevê bem. A ferramenta para medir existe
+agora, mas ainda não rodou contra dado real: não há medida de calibração,
+precisão nem recall, não há comparação com o estado "em risco" que já
+existia, e os cortes 40 e 70 ainda não foram confrontados com um chamado
+encerrado. O que
 existe hoje é uma régua explicável para **priorizar fila** — o objetivo
 que a própria ADR assume — e não uma previsão validada de quem vai
 violar o prazo.

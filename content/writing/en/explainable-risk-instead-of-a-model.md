@@ -1,6 +1,6 @@
 ---
 title: Explainable risk instead of a model — predicting SLA breaches with a points table
-description: "To warn before an SLA breaches, the obvious answer was to train a model on ticket history. Steel's ServiceDesk went another way: nine factors with fixed weights, a sum locked at 100 by a test, cuts at 40 and 70, and every factor storing the sentence that explains the score. This is the algorithm, one ticket worked by hand, what it is formally, how the repeated-incident signature is built — and the fact that there is no backtest yet."
+description: "To warn before an SLA breaches, the obvious answer was to train a model on ticket history. Steel's ServiceDesk went another way: nine factors with fixed weights, a sum locked at 100 by a test, cuts at 40 and 70, and every factor storing the sentence that explains the score. This is the algorithm, one ticket worked by hand, what it is formally, how the repeated-incident signature is built — and the four gaps that writing this post exposed, now fixed, including a backtest that exists but hasn't run against real data yet."
 icon: idea
 date: "2026-12-10"
 ---
@@ -55,7 +55,7 @@ each with a maximum weight, summing to 100:
 | `sla_consumed` | % of the deadline used (business minutes) | **30** | ramp from 50% to 100%; breached = full |
 | `unassigned` | no assignee | **12** | ramp from 0 to 4 h since opening |
 | `priority` | priority or severity | **12** | position on the workspace's scale |
-| `stale` | time since last interaction | **12** | ramp from 8 h to 48 h |
+| `stale` | time since the team's last interaction | **12** | ramp from 8 h to 48 h |
 | `reopened` | reopen count | **8** | 1 reopen = half, 2 = full |
 | `queue_pressure` | department queue | **8** | 0 at the mean, full at 2× the mean |
 | `waiting_third_party` | waiting phase with the clock running | **6** | all or nothing |
@@ -122,7 +122,16 @@ by a team of 30's ruler. Priority works the same way — the factor reads
 the ticket's position on that workspace's scale, `(level − 1) / (max − 1)`,
 instead of assuming everyone uses P1–P4. The deadline uses the SLA
 module's own clock: business minutes over the calendar, minus phase
-pauses. A paused clock scores nothing.
+pauses. A paused clock scores nothing. And there are two clocks: the
+resolution one whenever it has a deadline, and first response while
+nobody has answered. The factor scores the **more urgent** of the two (a
+breach beats any percentage), and the breach forecast (`breachEtaAt`) is
+the deadline that expires **first**.
+
+"Interaction" in `stale` means the team: the worker reads the ticket's
+last agent event (`actorKind = AGENT`). Customer messages, Steel AI
+actions and system events don't count — if the team never acted, the
+silence runs from opening.
 
 ### Computed in the worker, read ready-made
 
@@ -141,33 +150,42 @@ and its body is the sentences of the top three factors, not the score.
 
 A hypothetical ticket:
 
-- opened 6 h ago while the SLA clock was running, 8 business hours to
-  resolve → **75%** of the deadline used;
-- nobody has picked it up;
+- opened 6 h ago while the SLA clock was running;
+- the policy gives 4 business hours to first response and 8 to
+  resolution → first response **breached** 2 h ago, resolution at **75%**;
+- nobody has picked it up or answered;
 - priority `P2`, level 3 on a scale that goes to 4;
-- no interaction since it was opened;
+- no team action since it was opened;
 - its department has 14 open tickets; the workspace's department mean
   is 8;
 - the customer has breached before; the service hasn't.
 
 | Factor | Math | Points | Stored sentence |
 |---|---|---|---|
-| `sla_consumed` | (75 − 50) / (100 − 50) = 0.5 × 30 | **15** | "75% do prazo de resolução consumido (em horário útil)" |
+| `sla_consumed` | first response breached → full weight, 1 × 30 | **30** | "Prazo de 1ª resposta já violado" |
 | `unassigned` | 6 h / 4 h → saturates at 1 × 12 | **12** | "Sem responsável há 6 h" |
 | `priority` | (3 − 1) / (4 − 1) = 0.667 × 12 | **8** | "Prioridade P2" |
 | `stale` | 6 h < 8 h → ramp still at 0 | — | — |
 | `queue_pressure` | (14 − 8) / 8 = 0.75 × 8 | **6** | "Fila do time com 14 chamados abertos (média do workspace: 8)" |
 | `history` | customer only → 0.5 × 6 | **3** | "Este cliente já teve prazo violado antes" |
-| **Total** | | **44** | `MEDIUM` |
+| **Total** | | **59** | `MEDIUM` |
 
-Forty-four points, medium band, and four sentences the agent can check
-against the ticket. Nobody has to trust the number: "why is this one
-yellow" is answered by reading one database row.
+Fifty-nine points, medium band, and five sentences the agent can check
+against the ticket. The breach forecast points at the first-response
+deadline, already gone, not at resolution, still 2 h out. Nobody has to
+trust the number: "why is this one yellow" is answered by reading one
+database row.
 
-The same example exposes a less obvious property of the table. If the
-ticket sits until it breaches, `sla_consumed` hits 30 and the score
-climbs to around **60** (59, plus the point `stale` starts adding after
-8 h) — still `MEDIUM`. The heaviest factor caps at 30, so reaching
+I redid this by hand (and checked it by running the library) after the
+fixes described under "Where it broke". Before them, the same ticket
+scored **44**: the deadline factor only looked at the resolution clock
+(75% → 15 points) and the blown first response showed up nowhere in the
+score.
+
+The example also exposes a less obvious property of the table. If the
+ticket sits until resolution breaches too, the score goes to **60** (the
+same 59, plus the point `stale` starts adding after 8 h) — still
+`MEDIUM`. The heaviest factor caps at 30, so reaching
 `HIGH` requires at least 40 points from the other eight. The test case
 that lands exactly on 70 is: breached (30) + unassigned (12) + top
 priority (12) + idle for 48 h or more (12) + one reopen (4).
@@ -224,9 +242,15 @@ Terms come from the title:
    protocol — what varies between tickets groups nothing) and a stopword
    list: Portuguese function words plus generic ticket verbs (`urgente`,
    `favor`, `chamado`, `problema`, `erro`, `ajuda`, `preciso`…);
-3. dedupe, **sort alphabetically**, keep at most **4**.
+3. dedupe and, if more than **4** remain, keep the 4 most relevant: first
+   the term repeated most in the title itself, then the one found in the
+   most incidents of the **observation window**; alphabetical order only
+   breaks ties;
+4. sort the survivors alphabetically.
 
-Sorting is what puts "Servidor de e-mail fora do ar" and "E-mail fora do
+Window frequency rather than tf-idf is deliberate: idf rewards rare
+terms, which are exactly the ones that don't repeat and so never form a
+group. The final sort is what puts "Servidor de e-mail fora do ar" and "E-mail fora do
 ar no servidor" in the same group: both become `fora-mail-servidor`. A
 title with no meaningful term ("urgente!!!") gets no signature.
 
@@ -245,8 +269,9 @@ overruled every hour.
 What's verifiable is the contract, not the accuracy:
 
 - **9 factors**, weights summing to **100**, locked by a test;
-- **80 tests** across the three pure libraries (`risk.ts`,
-  `risk-compute.ts`, `incident-cluster.ts`), all passing, including the
+- **117 tests** across the four pure libraries (`risk.ts`,
+  `risk-compute.ts`, `incident-cluster.ts` and the new `risk-backtest.ts`;
+  the first three had 80 before the fixes), all passing, including the
   exact cuts (40 lands in `MEDIUM`, 70 in `HIGH`) and the 100 ceiling with
   every factor maxed;
 - every stored prediction carries its factor sentences, so every score is
@@ -256,24 +281,82 @@ What's verifiable is the contract, not the accuracy:
 
 The comparison against an alternative — a trained model, or even the "at
 risk" state the SLA module already had (by default from 80% of the
-deadline) — **doesn't exist**. I looked: the repository has no evaluation,
-no backtest, no precision or recall figure for this heuristic.
+deadline) — **still doesn't exist**. The tool to measure it now does
+(`pnpm risk:backtest`, below), but it hasn't run against real data, so I
+have no precision, recall or calibration figure to show.
 
-## Where it breaks
+## Where it broke, and what's already fixed
 
-**There's no backtest.** This is the biggest limitation and its root cause
-is in the design: weights and cuts were chosen, not fitted. Nobody has run
-the heuristic over closed tickets to see how many of its `HIGH`s actually
-breached, or how many breaches it left at `LOW`. Without that, 40 and 70
-are judgment, not evidence. The example above shows the table can leave
-an already-breached, unassigned ticket at `MEDIUM` — that may be exactly
-right, or not; there's no way to know without running it against history.
-The history exists, labels included. The cost is low; it just hasn't been
-paid.
+Writing this post with the code open next to it exposed four gaps. All
+four were fixed in
+[steel-so/steel#128](https://github.com/steel-so/steel/pull/128) and have
+been in staging since 18/10/2026 (Steel `2026.10.18.4`). Weights, bands
+and the factor format didn't change; ADR 0016 got an update note instead
+of a rewrite.
+
+### What was fixed
+
+**"No team interaction" counted any interaction.** `stale` read
+`lastActivityAt`, which also moves when the **customer** writes through
+the portal, email or WhatsApp. The sentence said "Sem interação da equipe
+há X", but a customer asking "any update?" reset the ramp — the score
+dropped exactly when frustration rose. The worker now fetches each
+ticket's last agent event, one query per 200-ticket batch; Steel AI and
+system events don't count. If that query fails, the batch falls back to
+the old behavior instead of treating every ticket as abandoned.
+
+**Only one clock counted.** The deadline factor used the resolution timer
+whenever there was one and fell back to first response only when there
+wasn't. A ticket at 95% of its first-response deadline and 30% of its
+resolution deadline scored zero on `sla_consumed`, and the forecast
+showed the later deadline. Now both count while nobody has answered, the
+factor takes the more urgent one and the forecast takes the one that
+expires first — that's the gap between 44 and 59 in the hand-worked
+ticket.
+
+**The signature cut terms alphabetically.** With more than 4 terms, it
+kept the first 4 in the alphabet, not the most informative. "VPN cai ao
+acessar sistema financeiro remoto" became `acessar-cai-financeiro-remoto`,
+and the same title without "remoto" became
+`acessar-cai-financeiro-sistema`, a different group. The cut is now by
+frequency in the title and in the window. With just those two tickets in
+the window, `remoto` appears in only one and drops: both become
+`acessar-cai-financeiro-sistema` and land in the same group. `vpn`,
+though, is still left out here — it ties with `acessar`, `cai`,
+`financeiro` and `sistema` (all in two tickets) and loses the alphabetical
+tie-break. It only gets in when it repeats across the window more than
+the rest: add a third ticket, "VPN caindo no sistema financeiro", and the
+first two become `acessar-financeiro-sistema-vpn` (the third becomes
+`caindo-financeiro-sistema-vpn` — with no stemming, `cai` and `caindo`
+are different terms).
+
+**There was no backtest.** Weights and cuts were chosen, not fitted, and
+nobody had run the heuristic over closed tickets. There's now
+`pnpm risk:backtest`, which only reads the database. For each closed
+ticket with a deadline it takes three snapshots — at 25%, 50% and 75% of
+the way from opening to breach (or close) — recomputes the score from
+what was known at each instant, and compares the predicted band with the
+real outcome: calibration per band (actual breach rate in `LOW`,
+`MEDIUM` and `HIGH`), precision and recall of the high band as an alarm,
+and lead time — how long before the breach the ticket reached `HIGH`.
+
+### What's still broken
+
+**The backtest exists but has no results yet.** It hasn't run against
+real data, so there's no calibration figure to cite: 40 and 70 are still
+judgment, not evidence. The example above shows the table leaving an
+unassigned ticket with a blown first response at `MEDIUM` — that may be
+right, or not, and only the history will tell. And even once it runs,
+the figure will be biased low on three factors. The root cause is that
+ticket history isn't versioned: the script doesn't rebuild each past
+instant's phase or SLA pause (it assumes an in-progress phase with the
+clock running) and recounts queue and load from the sample alone. So
+`waiting_third_party`, `queue_pressure` and `assignee_load` come out
+understated.
 
 **The score isn't a probability.** The ADR locks the sum at 100 so the
 score reads "as a percentage" — of the maximum points, not of the chance
-to breach. 44 doesn't mean 44%. In practice even 100 is unreachable:
+to breach. 59 doesn't mean 59%. In practice even 100 is unreachable:
 `unassigned` and `assignee_load` are mutually exclusive (one needs no
 assignee, the other needs one), so the real ceiling is **94** without an
 assignee and **88** with one.
@@ -283,25 +366,10 @@ brings new information. An unassigned ticket is almost always also idle
 and burning deadline — three factors scoring the same fact. A regression
 would absorb that into the weights; a hand-written table doesn't.
 
-**Only one clock counts.** The deadline factor uses the resolution timer
-whenever there is one, and falls back to first response only when there
-isn't. A ticket at 95% of its first-response deadline and 30% of its
-resolution deadline scores zero on `sla_consumed`. The SLA module still
-flags the first-response timer as at risk on its own; the predictive
-score just doesn't see it.
-
-**"No team interaction" counts any interaction.** `stale` reads
-`lastActivityAt`, which is also bumped when the **customer** sends a
-WhatsApp message or an email. The sentence says "Sem interação da equipe
-há X", but a customer asking "any update?" resets the ramp — the score
-drops exactly when frustration rises.
-
-**The incident signature is brittle at the edges.** It truncates to the
-first 4 terms **in alphabetical order**, not the 4 most informative. "VPN
-cai ao acessar sistema financeiro remoto" becomes
-`acessar-cai-financeiro-remoto` — `vpn`, the most distinctive word, falls
-off; the same title without "remoto" becomes
-`acessar-cai-financeiro-sistema`, a different group. There's no stemming
+**The incident signature is still brittle at the edges.** The frequency
+cut has an accepted cost: the signature of a title with more than 4 terms
+can change as the window moves — the alphabetical cut was stable, just
+arbitrary. There's no stemming
 ("impressora" and "impressoras" differ), the ticket body is ignored, and a
 miscategorized incident never meets its group, because category,
 subcategory and service are part of the key. Exact equality was
@@ -317,9 +385,11 @@ sentences on screen, and any "why is this red" is answered by reading one
 row. It also leaves the format ready for future calibration without
 changing the contract — which is design, not a result.
 
-It doesn't prove the heuristic predicts well. There's no precision or
-recall figure, no comparison with the "at risk" state that already
-existed, and 40 and 70 have never been checked against a closed ticket.
+It doesn't prove the heuristic predicts well. The tool to measure it now
+exists but hasn't run against real data: there's no calibration,
+precision or recall figure, no comparison with the "at risk" state that
+already existed, and 40 and 70 still haven't been checked against a
+closed ticket.
 What exists today is an explainable yardstick to **prioritize a queue** —
 the goal the ADR itself sets — not a validated prediction of who will
 breach.
