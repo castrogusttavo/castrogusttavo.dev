@@ -1,6 +1,6 @@
 ---
 title: 98% de cobertura e um kanban que não arrastava — o problema dos testes cúmplices
-description: "Em 20 de setembro o frontend da Nexo tinha 98,0% de linhas cobertas e um kanban em que nenhum card saía do lugar. A primeira execução da suíte de navegador achou quatro bugs que tinham atravessado mais de 3.600 testes, e dois deles estavam em arquivos cobertos por testes que afirmavam o defeito. Este post é sobre esses testes cúmplices: como eles nascem, os 23 bugs da suíte de componente agrupados pela causa, e o que mudou na forma de escrever teste depois disso."
+description: "Em 20 de setembro o frontend da Nexo tinha 98,03% de linhas cobertas e um kanban em que nenhum card saía do lugar. A primeira execução da suíte de navegador achou quatro bugs que tinham atravessado mais de 3.600 testes, e dois deles estavam em arquivos cobertos por testes que afirmavam o defeito. Este post é sobre esses testes cúmplices: como eles nascem, os 23 bugs da suíte de componente agrupados pela causa, e o que mudou na forma de escrever teste depois disso."
 icon: bug
 date: "2026-11-05"
 ---
@@ -22,8 +22,12 @@ arrasto. O `KanbanItem` guarda os listeners do dnd-kit num contexto, pra um
 do quadro era inerte. Os testes do que acontece depois do drop passavam,
 verdes, sobre um drop que não podia acontecer.
 
-Nesse dia o frontend tinha **98,0% de linhas cobertas** (branches em
-93,1%, relatório do v8 no escopo de frontend, 20 de setembro). Por baixo
+Nesse dia o frontend tinha **98,03% de linhas cobertas** (branches em
+93,1%, relatório do v8 no escopo de frontend, CI de 20 de setembro, medido
+antes da correção do kanban). (O Codecov mostrava 94,97% para o mesmo
+código naquele dia: ele conta como parcial uma linha com um branch não
+percorrido. O número do v8 é de linhas executadas, só nos arquivos de
+cliente.) Por baixo
 dele havia 1.420 testes unitários, 549 de integração, 1.662 de componente e
 18 de contrato. A primeira execução da suíte de navegador, que roda o
 artefato de produção num Chromium de verdade, achou quatro bugs que
