@@ -152,7 +152,7 @@ the service refuses anyway.
 
 ```
 parse → preview → AiPendingAction(PENDING, 30 min) → SSE action.pending
-      → Confirm click → revalidation → execute → AiActionLog + auditMutation
+      → Confirm click → revalidation + preview rebuilt → execute → AiActionLog + auditMutation
       → TOOL message in the history
 ```
 
@@ -188,8 +188,10 @@ that was true at proposal time. AI still enabled; the action is **yours**
 (someone else's answers 404, not 403); still `PENDING`; not past its 30
 minutes (otherwise it becomes `EXPIRED`); `DELETE` requires
 `doubleConfirmed: true`; agent mode still on and the tool still allowed for
-your profile right now. Then `runTool` re-runs `parse` on the stored
-arguments before calling `execute`.
+your profile right now. Still before executing, it rebuilds the preview and
+compares it with what the card showed — a check added after the first
+version, covered in the limitations. Then `runTool` re-runs `parse` on the
+stored arguments before calling `execute`.
 
 The double-click problem is solved by one SQL statement:
 
@@ -266,6 +268,7 @@ cancel rate. What can be compared is what each design allows:
 | Prompt injected in a ticket description | writes, if the model obeys | proposes; nothing runs without a click |
 | Same request in two tabs / double click | up to the model not repeating | runs once (`WHERE status = 'PENDING'`) |
 | Permission revoked between proposal and click | n/a (ran immediately) | refused at confirmation |
+| Record edited by someone else between proposal and click | n/a (ran immediately) | refused (`409`); the fresh preview shows on the card |
 | Delete | one boolean, like everything else | double confirmation (`doubleConfirmed`) |
 | "Don't write" rehearsal | prompt instruction | `execute` never called, server-side |
 
@@ -275,10 +278,12 @@ tools**, **54 of them writes** (17 `CREATE`, 18 `UPDATE`, 10 `DELETE`, 9
 `executeClaimedAction`, all have a load-time-validated `preview`, and the 10
 deletes need double confirmation. No tool needed its own confirmation path.
 
-`AiPendingActionService`'s tests (24 cases) cover double click, losing a
+`AiPendingActionService`'s tests (30 cases) cover double click, losing a
 concurrent confirm, expiry, someone else's action, delete without the
-second confirmation, and agent mode or permission revoked mid-way; the e2e
-tests against Postgres cover another member's action and an expired one.
+second confirmation, agent mode or permission revoked mid-way, and a stale
+preview; the e2e tests against Postgres cover another member's action, an
+expired one, and a task edited between proposal and click (the first click
+gets a `409`, the second executes).
 
 The accepted cost is written in the ADR: **one extra click per write, and a
 turn that ends "awaiting confirmation"**. The model can't chain "create the
@@ -297,14 +302,38 @@ confirms the twenty-first without reading. The design trades "the model
 decides" for "a person decides with the preview in front of them" — which
 is only as good as the preview and the reader's attention.
 
-**Confirmation re-checks permission, not the preview.** The preview is
-computed and stored at proposal time. On click, the server re-checks owner,
-status, expiry, mode, module and RBAC and re-parses the arguments — but
-`execute` recomputes its plan against the record's current state, and
-nothing compares that state with what the card showed. If the ticket
-changed hands in the 25 minutes between proposal and click, the person
-confirmed a stale snapshot. The 30-minute validity narrows the window; it
-doesn't close it.
+**Confirmation re-checked permission, not the preview — and that's now fixed.**
+The preview is computed and stored at proposal time. On click, the server
+re-checked owner, status, expiry, mode, module and RBAC and re-parsed the
+arguments — but `execute` recomputes its plan against the record's current
+state, and nothing compared that state with what the card showed. If a
+colleague reassigned the ticket, moved the opportunity or renamed the task
+in the 25 minutes between proposal and click, the confirmation applied the
+AI's change over theirs, or mixed with it. The "before" the person approved
+was no longer the real "before", on all three paths: the Steel AI chat,
+actions requested by an app connected over MCP (the `confirmUrl` link), and
+Steel Agents approvals.
+
+The fix ([steel-so/steel#127](https://github.com/steel-so/steel/pull/127),
+in staging since 2026-10-18, Steel `2026.10.18.4`) runs before the
+`PENDING → EXECUTED` claim: `assertPreviewUnchanged` rebuilds the preview
+with the same `args` and the same context the execution will use, and
+compares it with the one stored on the row. It compares what the person saw
+— title, summary, before → after lines and target, normalized by
+`previewFingerprint` so key order doesn't matter — not `updatedAt`, so a
+change the preview doesn't show (an SLA tick, a new message) doesn't block.
+Same preview: it executes as before. Different: nothing runs, the action
+stays `PENDING` with the fresh preview stored, the response is
+`409 AI_PENDING_ACTION_CHANGED` with "O registro mudou desde a prévia.
+Revise e confirme de novo." ("The record changed since the preview. Review
+and confirm again."), the card swaps in the new preview, and the next click
+confirms what's on screen.
+
+What's left is worth saying plainly: **the check narrows the race; it isn't
+a lock.** There's still a millisecond window between the comparison and the
+execution where another write can slip in. And a preview that can no longer
+be built (record deleted, window closed) doesn't block the confirmation:
+`execute` fails the same way and the action ends `FAILED`, as before.
 
 **In Test mode, the preview caps the simulation.** The ADR says it plainly:
 a tool with a poor preview yields a poor simulation. The rehearsal shows
@@ -334,7 +363,8 @@ lives in the execution path, the prompt only explains — covers both
 confirming and rehearsing without a second implementation.
 
 It doesn't prove people read the cards. It doesn't prove the preview
-describes everything `execute` does, or that the record at click time
-matches the proposal. And it says nothing about the modes where, by product
+describes everything `execute` does, or that nothing changes between the
+click-time preview check and the execution — the check narrows that window,
+it doesn't close it. And it says nothing about the modes where, by product
 decision, per-write confirmation steps aside — those have other locks, and
 other costs.

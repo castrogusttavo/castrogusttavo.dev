@@ -160,7 +160,7 @@ errar, o service recusa do mesmo jeito.
 
 ```
 parse → preview → AiPendingAction(PENDING, 30 min) → SSE action.pending
-      → clique em Confirmar → revalidação → execute → AiActionLog + auditMutation
+      → clique em Confirmar → revalidação + prévia de novo → execute → AiActionLog + auditMutation
       → mensagem TOOL no histórico
 ```
 
@@ -198,9 +198,11 @@ que estava certo no momento da proposta. Na ordem: IA ligada no workspace;
 a ação é **sua** (de outro usuário responde 404, não 403); ainda está
 `PENDING`; não passou dos 30 minutos (se passou, vira `EXPIRED`);
 `DELETE` exige `doubleConfirmed: true` no corpo; modo agente ainda ligado e
-a ferramenta ainda permitida para o seu perfil agora. E, na execução,
-`runTool` roda `parse` de novo sobre os argumentos guardados antes de chamar
-`execute`.
+a ferramenta ainda permitida para o seu perfil agora. Depois, ainda antes
+de executar, monta a prévia de novo e compara com a que estava no cartão — uma
+checagem que entrou depois da primeira versão, e que conto na seção de
+limitações. E, na execução, `runTool` roda `parse` de novo sobre os argumentos
+guardados antes de chamar `execute`.
 
 A parte que resolve o clique duplo é uma linha de SQL:
 
@@ -286,6 +288,7 @@ desenho permite, cenário a cenário:
 | Prompt injetado numa descrição de chamado | grava, se o modelo obedecer | propõe; nada executa sem clique |
 | Mesmo pedido em duas abas / clique duplo | depende do modelo não repetir | executa uma vez (`WHERE status = 'PENDING'`) |
 | Permissão revogada entre proposta e clique | n/a (executava na hora) | recusado na confirmação |
+| Registro alterado por outra pessoa entre proposta e clique | n/a (executava na hora) | recusado (`409`); a prévia nova aparece no cartão |
 | Exclusão | um booleano, como o resto | confirmação dupla (`doubleConfirmed`) |
 | Ensaio "sem gravar" | instrução no prompt | `execute` nunca chamado no servidor |
 
@@ -296,11 +299,12 @@ E o alcance do mecanismo, contado no registro atual (`STEEL_AI_TOOLS`, em
 carga, e as 10 de exclusão exigem confirmação dupla. Nenhuma ferramenta
 precisou de um caminho próprio de confirmação.
 
-Os testes de `AiPendingActionService` (24 casos) cobrem o clique duplo, a
+Os testes de `AiPendingActionService` (30 casos) cobrem o clique duplo, a
 confirmação concorrente que perde a disputa, ação expirada, ação de outro
-usuário, exclusão sem a segunda confirmação, modo agente desligado no meio e
-permissão revogada no meio; os testes e2e contra o Postgres cobrem a ação de
-outro membro e a expirada.
+usuário, exclusão sem a segunda confirmação, modo agente desligado no meio,
+permissão revogada no meio e a prévia vencida; os testes e2e contra o Postgres
+cobrem a ação de outro membro, a expirada e uma tarefa editada entre a
+proposta e o clique (o primeiro clique recebe `409`, o segundo executa).
 
 O custo aceito está na própria ADR: **um clique a mais por escrita e um turno
 que termina "aguardando confirmação"**. O modelo não encadeia "criar o
@@ -320,13 +324,36 @@ confirma o vigésimo primeiro sem ler. O mecanismo troca "o modelo decide"
 por "a pessoa decide com a prévia na frente" — o que só é tão bom quanto a
 prévia e a atenção de quem lê.
 
-**A confirmação revalida a permissão, não a prévia.** A prévia é calculada e
-guardada no momento da proposta. No clique, o servidor reconfere dono,
-status, validade, modo, módulo e RBAC, e roda `parse` de novo — mas `execute`
-recalcula o plano sobre o estado atual do registro, e nada compara esse
-estado com o que o cartão mostrava. Se o chamado mudou de responsável nos 25
-minutos entre a proposta e o clique, a pessoa confirmou um retrato velho. Os
-30 minutos de validade limitam a janela; não a fecham.
+**A confirmação revalidava a permissão, não a prévia — e isso foi corrigido.**
+A prévia é calculada e guardada no momento da proposta. No clique, o servidor
+reconferia dono, status, validade, modo, módulo e RBAC, e rodava `parse` de
+novo — mas `execute` recalcula o plano sobre o estado atual do registro, e
+nada comparava esse estado com o que o cartão mostrava. Se um colega mudasse o
+responsável do chamado, movesse a oportunidade ou renomeasse a tarefa nos 25
+minutos entre a proposta e o clique, a confirmação aplicava a mudança da IA
+por cima da dele, ou misturada com ela. O "antes" que a pessoa aprovou já não
+era o "antes" real, e isso valia nos três caminhos: o chat do Steel AI, as
+ações pedidas por um app conectado via MCP (o link `confirmUrl`) e a
+aprovação dos Steel Agents.
+
+A correção ([steel-so/steel#127](https://github.com/steel-so/steel/pull/127),
+em homologação desde 18/10/2026, Steel `2026.10.18.4`) roda antes da troca
+`PENDING → EXECUTED`: `assertPreviewUnchanged` monta a prévia de novo com os
+mesmos `args` e o mesmo contexto da execução, e compara com a gravada na linha.
+A comparação é sobre o que a pessoa viu — título, resumo, linhas antes → depois
+e alvo, normalizados por `previewFingerprint` para não depender de ordem de
+chaves —, não sobre `updatedAt`: uma mudança que a prévia não mostra (um tique
+de SLA, uma mensagem nova) não bloqueia. Se é igual, executa como antes. Se
+mudou, nada executa: a ação continua `PENDING` com a prévia nova gravada, a
+resposta é `409 AI_PENDING_ACTION_CHANGED` com a mensagem "O registro mudou
+desde a prévia. Revise e confirme de novo.", o cartão troca para a prévia nova,
+e o clique seguinte confirma o que está na tela.
+
+O que sobra é honesto de dizer: **a checagem estreita a corrida, não é uma
+trava.** Entre a comparação e a execução fica uma janela de milissegundos em
+que outra escrita ainda pode passar. E uma prévia que não dá mais para montar
+(registro apagado, janela fechada) não bloqueia a confirmação: `execute` falha
+do mesmo jeito e a ação fica `FAILED`, como antes.
 
 **No modo Teste, a prévia é o teto da simulação.** A ADR diz com todas as
 letras: ferramenta com prévia pobre gera simulação pobre. O que o ensaio
@@ -359,7 +386,7 @@ serve tanto para confirmar quanto para ensaiar, sem uma segunda
 implementação.
 
 Não prova que as pessoas leem os cartões. Não prova que a prévia descreve
-tudo que `execute` faz, nem que o estado do registro no clique é o mesmo da
-proposta. E não diz nada sobre os modos em que, por decisão do produto, a
+tudo que `execute` faz, nem que nada muda entre a checagem da prévia no clique
+e a execução — ela estreita essa janela, não a fecha. E não diz nada sobre os modos em que, por decisão do produto, a
 confirmação por escrita sai de cena — esses têm outros cadeados, e outros
 custos.
