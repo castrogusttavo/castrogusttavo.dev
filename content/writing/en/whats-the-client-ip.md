@@ -227,16 +227,23 @@ sent no header, that's the real address; for someone who did, it's what
 they wrote. The database doesn't keep the full list, so there's no way to
 tell the two apart after the fact. The consent itself (document, version,
 date, user) still stands; the IP on those records is a claim, not
-evidence.
+evidence. In practice no third party's record is affected: apart from the
+load test's seed accounts, the only accounts are mine.
 
-**IPv6 is stored as a /64 prefix.** Better Auth's `getIPFromHeader`
-normalizes IPv6 to a /64 subnet by default, because it was built for rate
-limiting, where grouping by /64 is right. `clientIp` doesn't override that,
-so a consent given over IPv6 stores something like
+**The fix itself stored IPv6 as a /64 prefix for most of a day.** Better
+Auth's `getIPFromHeader` normalizes IPv6 to a /64 subnet by default
+(`ipv6Subnet: 64`), because it was built for rate limiting, where grouping
+by /64 is right. The `clientIp` that came in with `5fd075fa` inherited that
+default, so from October 17, 23:50 UTC, until
+[`da4ba764`](https://github.com/castrogusttavo/nexo/commit/da4ba764) was deployed on October 18 at 18:49 UTC, a
+consent given over IPv6 stored something like
 `2804:014c:005b:8000:0000:0000:0000:0000` — the network prefix, not the
-device's address. For rate limiting that's what you want; for a consent
-record it's less precise than someone reading the field would expect. I
-haven't changed it yet.
+device's address. Right for a rate limiter, less precise than anyone
+reading a consent record would expect. `da4ba764` split the two uses:
+consent and job-application records keep the full 128-bit IPv6, and the
+rate limiter still keys on the /64, now through `clientIpBucket`, since a
+subscriber usually owns a whole /64 and hopping addresses inside it
+shouldn't reset the limit.
 
 **Cloudflare's ranges are a static list.** If Cloudflare publishes a new
 range, connections from it won't have their address restored and will show
@@ -270,5 +277,5 @@ the sessions and the consent records all agree.
 
 It doesn't prove the consent records before October 17 carry a reliable
 IP — they don't, and there's no telling which. And it doesn't prove the
-stored IP identifies a person: with NAT, CGNAT and IPv6's /64, it
-identifies a network, and that's all a record like this should claim.
+stored IP identifies a person: with NAT and CGNAT, it identifies a
+network, and that's all a record like this should claim.
