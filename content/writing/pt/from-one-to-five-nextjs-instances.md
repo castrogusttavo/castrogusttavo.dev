@@ -165,7 +165,13 @@ done
 Esse trecho já é a versão de cinco. No mesmo dia a VM foi de 4 para 6
 núcleos físicos (12 vCPU) e de 7,6 para 12 GB, e o commit `6208b16e` subiu
 para cinco instâncias: cinco núcleos para o Next, um para Postgres, Redis,
-nginx e o resto, ~5,5 GB de RAM sob carga.
+nginx e o resto, ~5,5 GB de RAM sob carga. O `upstream` de produção está
+versionado em `infra/nginx/nexo-upstream.conf`
+([`fa3d1878`](https://github.com/castrogusttavo/nexo/commit/fa3d1878)):
+`least_conn` em `127.0.0.1:3001` a `3005`, cada uma com
+`max_fails=3 fail_timeout=10s`. Uma instância que falha três vezes em 10
+segundos sai da rotação por 10 segundos, que é o que deixa o rolling deploy
+trocar uma por vez sem o erro chegar ao usuário.
 
 ### O que quebra quando o processo deixa de ser um só
 
@@ -260,7 +266,9 @@ pré-renderizada. O shell estático de `/pricing` era um `<body>` vazio, e o
 `087205dc` tiraram a leitura da requisição do layout raiz (consentimento de
 cookies lido no navegador; quem tem sessão vai de `/` para `/home`), e o
 `164c94b1` passou a compressão do Node para o nginx: localmente, as páginas
-estáticas foram de 16,6 para 6,2 ms de CPU por requisição só com isso. Mais
+estáticas foram de 16,6 para 6,2 ms de CPU por requisição só com isso
+(nenhuma rodada de k6 deste post pediu compressão, então essa parte não
+aparece nas tabelas; explico nas limitações). Mais
 tarde, o `26690cfc` tirou ~550 ícones repetidos da tabela de preços, e o HTML
 de `/pricing` caiu de 1,04 MB para 653 KB.
 
@@ -281,11 +289,22 @@ partir de três instâncias, passando pelo nginx com TLS em `127.0.0.1`.
 |---|---|---|
 | 1 instância, 8 vCPU | ~400 | mensagem do `d5626518` |
 | 3 instâncias, 8 vCPU | 800 | mensagem do `6208b16e` |
+| 5 instâncias, 12 vCPU, páginas não corrigidas | ~1.200 VUs: p95 445 ms / p99 939 ms, ~124 req/s | nota de sessão, 16/10 (sem saída bruta) |
 | 5 instâncias, 12 vCPU, páginas corrigidas | 1.200 VUs: p95 137 ms / p99 238 ms | nota do teste, 16/10 |
-| idem | 1.600 VUs: p95 542 ms / p99 1,18 s (passou um pouco) | nota do teste, 16/10 |
+| idem | 1.600 VUs: p95 542 ms / p99 1,18 s (estourou a meta por pouco) | nota do teste, 16/10 |
 
-De ~400 para ~1.500 usuários dentro da meta, sem nenhum erro, com o gerador
-de carga disputando CPU com o próprio app.
+A terceira linha é da minha nota de sessão; não guardei a saída bruta dessa
+rodada. É ela que separa os dois efeitos: com as páginas ainda caras, uma,
+três e cinco instâncias deram ~400, 800 e ~1.200 usuários dentro da meta;
+com as páginas corrigidas, as mesmas cinco instâncias foram de ~1.200 para
+~1.500. A ressalva é que entre três e cinco instâncias a VM também foi de 8
+para 12 vCPU, então o passo de 800 para 1.200 é instância e máquina juntas.
+
+O ~1.500 não é uma rodada: é interpolado entre 1.200 VUs, que passaram com
+folga, e 1.600, que estouraram a meta por pouco. Não rodei nada entre os
+dois. De ~400 para ~1.500 usuários dentro da meta, sem nenhum erro nas
+rodadas que guardei, com o gerador de carga disputando CPU com o próprio
+app.
 
 ### De fora, pelo mesmo caminho de um usuário
 
@@ -324,25 +343,36 @@ em **378 ms**.
 
 ## Onde quebrou, e o que este teste não mede
 
-**O gerador está longe, e um dos números que eu usei está inflado por um
-erro meu.** O runner do GitHub fica fora do Brasil, e cada requisição paga
-~220 ms de rede antes de o servidor começar a trabalhar. Isso eu sabia. O
-que eu não sabia até escrever este post: o header que deveria pedir
-compressão em `k6/load.js` está escrito `'Accept-Enconding'`, com um "n" a
-mais, desde o commit que o criou. O k6 nunca pediu compressão. Os bytes
+**O gerador está longe, e nenhuma rodada pediu compressão.** O runner do
+GitHub fica fora do Brasil, e cada requisição paga ~220 ms de rede antes de
+o servidor começar a trabalhar. Isso eu sabia. O que eu só descobri
+escrevendo este post: o header que deveria pedir compressão em
+`k6/load.js` estava escrito `'Accept-Enconding'`, com um "n" a mais, desde
+o commit que o criou. O servidor recebia um header que não conhece, e o k6
+não manda `Accept-Encoding` nenhum por padrão, então nenhuma rodada deste
+post, nem do host nem do GitHub, pediu resposta comprimida. Os bytes
 recebidos confirmam: ~185 KB por requisição em média nos testes de 16/10
 (~157 KB depois da `/pricing` menor), compatível com HTML cru, não com os
-~42 KB que uma página comprimida pesaria. Então o "~1 s de rede" das
-páginas medidas do runner não é só distância: é baixar meio megabyte sem
-gzip atravessando um continente. Os números de API, que são JSON pequeno,
-são muito menos afetados. Fica para corrigir antes da próxima rodada, e a
-comparação de páginas entre runner e máquina local não deve ser lida como
-custo puro de rede.
+~42 KB que uma página comprimida pesaria. Corrigi o header depois das
+rodadas, no
+[`f7dd4444`](https://github.com/castrogusttavo/nexo/commit/f7dd4444).
+
+O que isso significa para os números medidos: são todos de respostas sem
+compressão, antes e depois. A passagem da compressão do Node para o nginx
+(`164c94b1`) não aparece em nenhuma tabela, porque nesses testes nem o Node
+nem o nginx comprimiram nada; o ganho de página que está nos números é o da
+pré-renderização e do HTML menor. E o "~1 s de rede" das páginas medidas do
+runner não é só distância: é baixar meio megabyte sem gzip atravessando um
+continente. Os números de API, que são JSON pequeno, são muito menos
+afetados. A comparação de páginas entre runner e máquina local não deve ser
+lida como custo puro de rede, e a próxima rodada, já pedindo compressão, não
+é comparável byte a byte com estas.
 
 **Gerar a carga perto do servidor também não é limpo.** Os números do host
 rodaram o k6 na mesma VM que serve a Nexo, disputando CPU com as cinco
 instâncias, o Postgres e o TLS do nginx. Isso deixa os números pessimistas
-para o servidor, mas significa que "~1.500 usuários dentro da meta" foi
+para o servidor, mas significa que "~1.500 usuários dentro da meta"
+(interpolado, como expliquei acima) foi
 medido num host que estava fazendo duas coisas ao mesmo tempo. E da minha
 máquina, de 4 núcleos e conexão residencial, os 1.500 VUs não saem: tentei,
 deu 44% de falha por timeout no gerador. Ela só serve para medir com poucas
@@ -362,14 +392,16 @@ a API autenticada, não o render das páginas privadas.
 
 **Os números do host não têm um run público.** Os do GitHub qualquer um
 confere: run id, artefato JSON, log. Os do k6 no host, não: estão nas
-mensagens dos commits e nas minhas notas, e eu não separei de forma limpa
-quanto do ganho veio das cinco instâncias e quanto veio das páginas mais
-baratas, porque mudei as duas coisas no mesmo dia. O heap snapshot também
-foi feito localmente, numa reprodução com 200 VUs por 4 minutos, não em
-produção; em produção o que eu tenho é a curva de RSS antes e depois. E a
-configuração do `upstream` do nginx em produção não está versionada no
-repositório (só a de IP real da Cloudflare está), então o `least_conn` que
-eu descrevo, por enquanto, você tem que acreditar.
+mensagens dos commits e nas minhas notas. E o ponto que separa instâncias de
+páginas, cinco instâncias com as páginas não corrigidas, é o mais fraco
+deles: existe só na minha nota de sessão, sem a saída bruta, e a VM mudou
+de tamanho no mesmo passo. A separação é aproximada, não limpa. O heap
+snapshot também foi feito localmente, numa reprodução com 200 VUs por 4
+minutos, não em produção; em produção o que eu tenho é a curva de RSS antes
+e depois. Já o `upstream` do nginx dá para conferir: está versionado desde
+o `fa3d1878`, copiado do servidor em 18/10, depois dos testes. O deploy não
+o aplica sozinho; o arquivo no repositório é a referência, e a instalação
+no host continua manual.
 
 **O estado por instância não acabou, só foi listado.** Rate limit e conexões
 foram resolvidos. O cache do `'use cache'` foi contornado por decisão
@@ -397,7 +429,9 @@ verdade foi achar tudo o que vivia na memória dele.
 
 Não prova quantos usuários reais a Nexo aguenta: o cenário não navega por
 páginas logadas, não baixa assets e roda com uma cadência que eu escolhi.
-Não separa quanto do ganho é instância e quanto é página mais barata. Não
+Separa quanto do ganho é instância e quanto é página mais barata só de
+forma aproximada, com um ponto que vem de nota sem saída bruta e uma VM que
+cresceu no meio. Não
 prova que 160 req/s é o teto do hardware atual, porque nenhum dos testes de
 fora chegou a saturá-lo. E não prova nada sobre deploy sob carga, porque
 nenhum deploy aconteceu durante um teste.
