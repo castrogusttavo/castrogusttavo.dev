@@ -1,6 +1,6 @@
 ---
 title: 98% coverage and a kanban that wouldn't drag — the problem with complicit tests
-description: "On September 20, Nexo's frontend had 98.0% line coverage and a kanban board where no card would move. The first run of the browser suite found four bugs that had slipped past more than 3,600 tests, and two of them lived in covered files whose tests asserted the defect. This post is about those complicit tests: how they're born, the 23 bugs from the component suite grouped by cause, and what changed in how I write tests afterwards."
+description: "On September 20, Nexo's frontend had 98.03% line coverage and a kanban board where no card would move. The first run of the browser suite found four bugs that had slipped past more than 3,600 tests, and two of them lived in covered files whose tests asserted the defect. This post is about those complicit tests: how they're born, the 23 bugs from the component suite grouped by cause, and what changed in how I write tests afterwards."
 icon: bug
 date: "2026-11-05"
 ---
@@ -22,8 +22,11 @@ after the drop. The trouble is that no user could *start* a drag.
 on the board was inert. The tests for what happens after a drop were green,
 about a drop that could never happen.
 
-That day the frontend sat at **98.0% line coverage** (93.1% branches, v8
-report over the frontend scope, September 20). Underneath it were 1,420
+That day the frontend sat at **98.03% line coverage** (93.1% branches, v8
+report over the frontend scope, CI run of September 20, measured before the
+kanban fix). (Codecov showed 94.97% for the same code that day: it counts a
+line with an untaken branch as partial. The v8 figure is executed lines,
+client files only.) Underneath it were 1,420
 unit tests, 549 integration tests, 1,662 component tests and 18 contract
 tests. The first run of the browser suite, which serves the production
 artifact to a real Chromium, found four bugs none of them had seen. Two
