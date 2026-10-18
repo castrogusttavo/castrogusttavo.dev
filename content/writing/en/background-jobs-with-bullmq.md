@@ -78,11 +78,20 @@ queue.add(AccountLifecycleJob.DeleteAccount, { userId }, {
 })
 ```
 
-That gets cancellation for free: `cancelAccountDeletion(userId)` calls
-`queue.remove(jobId)` — if the job no longer exists (already ran, or never
-existed), the remove is a no-op and the function returns `false` instead of
-throwing. Canceling a deletion nobody scheduled isn't an error, it's
-idempotent by construction.
+The idea was cancellation for free: `cancelAccountDeletion(userId)` calls
+`queue.remove(jobId)`, and canceling a deletion nobody scheduled shouldn't
+be an error.
+
+> **Correction (Nov 17, 2026):** what I wrote here about `remove()` was
+> wrong. It doesn't return `false` for a missing job: it answers `1`
+> whenever the job isn't locked, whether it exists or not, so cancellation
+> always reported success. Existence is now read with `getJob()` first. The
+> fixed `jobId` had the mirror problem: BullMQ keeps the first job and drops
+> the next `add()`, so rescheduling never moved the deadline. Both were
+> fixed in
+> [`220ad51b`](https://github.com/castrogusttavo/nexo/commit/220ad51b054e34dfd4ddde040726034839ce703b),
+> and the story is in
+> [The account deletion that never deleted anyone](/en/writing/account-deletion-that-never-deleted).
 
 The consumer doesn't run inside Next. It's its own Node process
 (`worker/index.ts`) that imports services and repositories directly — the
