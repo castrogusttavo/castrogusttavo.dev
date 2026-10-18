@@ -298,7 +298,9 @@ O que continua sem resposta:
 - **Não sei quantos pedidos reais falharam.** Com `removeOnFail` de 7
   dias, qualquer job morto antes de 13/09 já tinha sumido do Redis quando
   achei o bug, e não existia alarme para ter registrado a morte. A mesma
-  lacuna que escondeu o bug apagou a evidência do tamanho dele.
+  lacuna que escondeu o bug apagou a evidência do tamanho dele. Na época,
+  as únicas contas fora do seed de carga eram minhas: o bug não reteve
+  dado de ninguém além de mim. Isso foi sorte, não projeto.
 - **A validação ponta a ponta em produção está pendente.** A migration
   rodou no CD e as 30 FKs foram conferidas no banco, mas
   ainda não agendei a exclusão de uma conta de teste com conteúdo,

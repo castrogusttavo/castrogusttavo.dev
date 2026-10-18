@@ -93,6 +93,13 @@ deveria ser erro.
 > [`220ad51b`](https://github.com/castrogusttavo/nexo/commit/220ad51b054e34dfd4ddde040726034839ce703b),
 > e a história está em
 > [A exclusão de conta que nunca excluiu ninguém](/pt/writing/account-deletion-that-never-deleted).
+>
+> E havia um defeito maior na mesma fila: até
+> [`94d044f`](https://github.com/castrogusttavo/nexo/commit/94d044f26d0b4e7f96d4e5684a4d0c9780e5acb9),
+> o próprio `delete-account` falhava para qualquer usuário que tivesse criado
+> conteúdo (uma chave estrangeira sem `onDelete` fazia o Postgres recusar), e o
+> retry com backoff descrito abaixo só repetia a mesma falha três vezes, sem
+> alarme nenhum.
 
 O consumidor não roda dentro do Next. É um processo Node próprio
 (`worker/index.ts`) que importa services e repositories diretamente — os
