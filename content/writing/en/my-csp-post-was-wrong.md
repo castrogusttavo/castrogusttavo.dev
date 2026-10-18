@@ -277,8 +277,8 @@ to it. The alarm was going off. It just didn't block anything: it's a
 scheduled workflow outside the deploy gate, and I published the post
 without checking its result. When I wrote that the headers were
 "checked every week", it was true in the most useless sense possible.
-Since the move to `nexopm.com` on September 19 and the fix deploy, all
-four weekly runs have passed.
+Since the move to `nexopm.com` on September 19 and the fix deploy,
+every weekly run since then has passed.
 
 Both mistakes share one root cause: I trusted a reading of the code to
 make a claim about what was running. The contract test and the
