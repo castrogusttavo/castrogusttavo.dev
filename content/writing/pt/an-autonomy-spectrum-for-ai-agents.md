@@ -269,7 +269,9 @@ Não tenho números de uso para pôr do lado — quantos workspaces ligaram o
 Autopilot, quantas aprovações expiram na inbox. O que é contável hoje é o
 registro: 98 ferramentas, 54 de escrita, 10 de exclusão (que o MCP nunca
 expõe e os agentes sempre aprovam) e 5 marcadas `customerFacing` (que o MCP
-sempre devolve para confirmação).
+sempre devolve para confirmação). Esse número muda a cada leva de
+ferramentas; a lista viva, gerada do próprio registro e com o que cada uma
+faz, fica em `/dev/mcp` no app.
 
 ## Onde quebrou / limitações
 
