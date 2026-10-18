@@ -1,6 +1,6 @@
 ---
 title: Colaboração em tempo real com Yjs no Plate, e os bugs que a documentação não avisa
-description: "Depois de trocar o tiptap pelo Plate na descrição de issue, a wiki da Nexo nasceu no Plate já com edição colaborativa: @platejs/yjs, Hocuspocus self-hosted e Redis pub/sub. Adicionar o plugin não conectou nada, apagar tudo derrubava o editor, o redo nunca habilitava e os menus copiados do registry falavam Radix num projeto que usa Base UI. Isto é cada causa raiz, e o bug que ficou sem causa: o cursor remoto até hoje não aparece."
+description: "Depois de trocar o tiptap pelo Plate na descrição de issue, a wiki da Nexo nasceu no Plate já com edição colaborativa: @platejs/yjs, Hocuspocus self-hosted e Redis pub/sub. Adicionar o plugin não conectou nada, apagar tudo derrubava o editor, o redo nunca habilitava e os menus copiados do registry falavam Radix num projeto que usa Base UI. Isto é cada causa raiz, e o bug que continua aberto: o cursor remoto até hoje não aparece."
 icon: code
 date: "2026-12-08"
 ---
@@ -266,16 +266,16 @@ Mas nenhuma das duas vê o cursor nem a seleção da outra. Não há erro de
 console. Revisei o histórico do repositório até hoje e não existe commit que
 corrija isso: o bug continua aberto.
 
-A causa raiz não está determinada, e o motivo é uma escolha de prioridade, não
-um descuido: a investigação foi pausada quando o menu de contexto travando
-passou na frente, e não voltei a ela. As hipóteses que anotei naquele dia
+A investigação ficou parada um tempo, e o motivo foi uma escolha de
+prioridade, não um descuido: o menu de contexto travando passou na frente.
+As hipóteses que anotei naquele dia
 eram três: algo removido ao adaptar o `cursor-overlay.tsx` do registry (tirei
 as dependências de `@platejs/ai` e `@platejs/table`), o awareness do
 Hocuspocus não propagar os dados do cursor, ou o overlay ser desenhado e
 ficar invisível por CSS.
 
-Lendo o código de novo para escrever este post, a hipótese que ficou mais
-forte é outra, e eu não a verifiquei rodando. O que está montado no editor é
+Lendo o código de novo para escrever este post, apareceu uma quarta. O que
+está montado no editor é
 o `CursorOverlayPlugin` do `@platejs/selection`, cujo `useCursorOverlay()`
 desenha os cursores guardados no próprio estado do plugin. No projeto de
 referência do Plate, esse overlay serve à seleção local e ao arrastar. Do
@@ -284,10 +284,17 @@ outro lado, o `YjsPlugin` com a opção `cursors` envolve o editor com
 repositório lê o estado de awareness dos **outros** clientes para desenhar.
 O awareness em si funciona: os comentários em tempo real da wiki
 (`1501f25`) usam esse mesmo canal, e o listener deles foi escrito
-justamente para ignorar o fluxo constante de posição de cursor. Se a
-hipótese estiver certa, os dados chegam a cada cliente e nenhum componente
-os desenha. Só vou saber abrindo duas sessões e inspecionando o awareness no
-devtools.
+justamente para ignorar o fluxo constante de posição de cursor.
+
+Essa eu verifiquei, com duas sessões locais: o awareness chega, nada
+desenha. A sessão B recebe pelo WebSocket **29** frames de awareness com
+`{name, color}` e a seleção de A em posições relativas do Yjs. E o DOM do
+editor de B é idêntico antes e depois de A selecionar o texto, sem nenhum
+caret remoto. O bug continua aberto, mas agora com causa conhecida. O
+conserto está planejado junto com as próximas mudanças da wiki: um overlay
+de cursor remoto que leia o awareness dos outros clientes, e a normalização
+do matiz negativo em `colorFromUserId`, que hoje pode gerar uma cor como
+`hsl(-245…)`.
 
 A segunda limitação é custo do meu próprio conserto. Forçar o remount com
 `key={isSynced ? ...}` descarta o que foi digitado antes do primeiro sync: o
@@ -295,9 +302,6 @@ editor pendente é substituído pelo sincronizado. O commit `fc78ddc` registra
 isso e expôs `data-sync-state` no container para os testes esperarem o sync
 em vez de esperar tempo. Para os testes, resolvido. Para um usuário numa
 conexão lenta que começa a digitar rápido, não.
-
-E sobrou ruído: os `console.log` de `connected`, `disconnected` e
-`sync change` que pus no `yjs-kit.tsx` para depurar o bug 1 continuam lá.
 
 ## O que isso prova, e o que não prova
 

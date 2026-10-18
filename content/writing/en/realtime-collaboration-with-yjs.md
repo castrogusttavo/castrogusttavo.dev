@@ -1,6 +1,6 @@
 ---
 title: Real-time collaboration with Yjs in Plate, and the bugs the docs don't warn you about
-description: "After swapping tiptap for Plate in issue descriptions, Nexo's wiki was born on Plate with collaborative editing from day one: @platejs/yjs, self-hosted Hocuspocus and Redis pub/sub. Adding the plugin connected nothing, deleting everything crashed the editor, redo never enabled, and the menus copied from the registry spoke Radix in a project that uses Base UI. This is each root cause, and the bug still without one: the remote cursor doesn't show up."
+description: "After swapping tiptap for Plate in issue descriptions, Nexo's wiki was born on Plate with collaborative editing from day one: @platejs/yjs, self-hosted Hocuspocus and Redis pub/sub. Adding the plugin connected nothing, deleting everything crashed the editor, redo never enabled, and the menus copied from the registry spoke Radix in a project that uses Base UI. This is each root cause, and the bug that's still open: the remote cursor doesn't show up."
 icon: code
 date: "2026-12-08"
 ---
@@ -264,16 +264,16 @@ neither sees the other's cursor or selection. No console error. I went
 through the repo's history up to today and no commit fixes it: the bug is
 still open.
 
-The root cause is undetermined, and that's a priority call, not an
-oversight: I paused the investigation when the stuck context menu jumped the
-queue, and never came back to it. The hypotheses I wrote down that day were
+The investigation sat paused for a while, and that was a priority call, not
+an oversight: the stuck context menu jumped the queue. The hypotheses I
+wrote down that day were
 three: something removed while adapting `cursor-overlay.tsx` from the
 registry (I stripped its `@platejs/ai` and `@platejs/table` dependencies),
 Hocuspocus awareness not propagating cursor data, or the overlay being drawn
 but invisible through CSS.
 
-Re-reading the code for this post, a different hypothesis got stronger, and
-I haven't verified it by running anything. What's mounted in the editor is
+Re-reading the code for this post, a fourth one showed up. What's mounted in
+the editor is
 `CursorOverlayPlugin` from `@platejs/selection`, whose `useCursorOverlay()`
 draws cursors kept in the plugin's own state. In Plate's reference project
 that overlay serves the local selection and dragging. On the other side,
@@ -282,9 +282,16 @@ which publishes the local position to awareness. And nothing in the repo
 reads the **other** clients' awareness state to draw it. Awareness itself
 works: the wiki's real-time comments (`1501f25`) ride that same channel, and
 their listener was written specifically to ignore the constant stream of
-cursor positions. If the hypothesis holds, the data reaches every client and
-no component draws it. I'll only know by opening two sessions and inspecting
-awareness in devtools.
+cursor positions.
+
+That one I verified, with two local sessions: awareness arrives, nothing
+draws it. Session B receives **29** awareness frames over the WebSocket,
+carrying `{name, color}` and A's selection as Yjs relative positions. And
+B's editor DOM is identical before and after A selects text, with no remote
+caret. The bug is still open, but the cause is known now. The fix is planned
+alongside the next wiki changes: a remote-cursor overlay that reads the other
+clients' awareness, and normalising the negative hue in `colorFromUserId`,
+which today can produce a color like `hsl(-245…)`.
 
 The second limitation is a cost of my own fix. Forcing a remount with
 `key={isSynced ? ...}` throws away whatever was typed before the first sync:
@@ -292,10 +299,6 @@ the pending editor is replaced by the synced one. Commit `fc78ddc` records
 this and exposes `data-sync-state` on the container so tests wait for sync
 instead of for time. For tests, solved. For a user on a slow connection who
 starts typing fast, not.
-
-And some noise is left: the `connected`, `disconnected` and `sync change`
-`console.log` calls I added to `yjs-kit.tsx` while debugging bug 1 are still
-there.
 
 ## What this proves, and what it doesn't
 
