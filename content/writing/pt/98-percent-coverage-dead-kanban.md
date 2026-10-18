@@ -173,7 +173,7 @@ corrigir, a regra é desligada naquela suíte com um comentário
 `// TODO(a11y):` dizendo por quê. Corrigir o bug significa apagar o TODO, e
 apagar o TODO religa a asserção. A dívida fica visível no código e o
 conserto se verifica sozinho. Hoje sobra exatamente um no repositório, e
-ele não é nosso:
+ele não é meu:
 
 ```tsx
 // TODO(a11y): aria-hidden-focus — Base UI wraps every popup in

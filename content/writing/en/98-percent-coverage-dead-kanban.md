@@ -165,7 +165,7 @@ over the rendered tree, and when a screen breaks a rule that can't be fixed
 yet, that suite disables the rule behind a `// TODO(a11y):` comment saying
 why. Fixing the bug means deleting the TODO, and deleting the TODO re-arms
 the assertion. The debt is visible in the code and the fix verifies itself.
-Exactly one is left in the repository, and it isn't ours:
+Exactly one is left in the repository, and it isn't mine:
 
 ```tsx
 // TODO(a11y): aria-hidden-focus — Base UI wraps every popup in
