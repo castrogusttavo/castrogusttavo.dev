@@ -221,6 +221,8 @@ da página de status (`/api/status`, consultada em 17/10/2026):
 | 24/09 | **99,7%** | 99,7% | 100% |
 | 25/09 | 100% | 100% | 100% |
 
+Sem arredondar, o dia 22 fechou em 51,736% e o dia 24 em 99,653%.
+
 Nos 52 dias com registro antes do conserto (de 21 de julho a 22 de
 setembro, com um buraco de 7 a 18 de setembro em que não há dado), o
 e-mail teve média de **87,3%** por dia. Nos sete primeiros dias completos
@@ -229,7 +231,9 @@ com a régua nova (24 a 30 de setembro), **99,9%**.
 O dia 23 é misto e vale a explicação: o resumo do dia corrente é
 recalculado a cada coleta, então depois do deploy ele foi refeito com a
 regra nova sobre as amostras da manhã inteira. Os 3,1% que faltam são
-amostras gravadas como falha, não como lentidão.
+amostras gravadas como falha, não como lentidão. Uma leitura parcial do
+dia 23, feita antes de ele fechar, chegou a mostrar 50,6%; o dia fechou em
+96,9%.
 
 ## Onde quebrou
 
@@ -271,19 +275,31 @@ a sonda da aplicação chega à URL pública por um atalho de rede interno, não
 pelo caminho que um cliente usa. E é uma região só: não existe sonda fora
 de São Paulo.
 
-**E, enquanto escrevo, a página está errada de novo.** Consultada em 17 de
-outubro, ela mostra Aplicação e Armazenamento em **queda total desde 1º de
-outubro** — 0% por dia, 16 dias seguidos —, enquanto `nexopm.com` e
-`storage.nexopm.com` respondem 200 de fora e a própria API de status, que
-é servida pela aplicação "fora do ar", responde normalmente. No dia 1º o
-e-mail e o pagamento também caíram (87,6% e 89,8%) e voltaram no dia
-seguinte; aplicação e storage não voltaram. Banco, cache, auth e jobs
-seguem verdes. Ainda não
-diagnostiquei a causa. O que dá pra dizer é que é a mesma classe de
-defeito deste post — a sonda medindo o caminho dela, não o do cliente — e
-que o desenho dos alertas não ajuda aqui: eles saem só em transição, e
-um componente parado no mesmo estado há 16 dias não gera mensagem
-nenhuma depois da primeira.
+**Em outubro, a mesma lição de novo.** De 1º a 18 de outubro a página
+mostrou Aplicação e Armazenamento em **queda total** — 0% por dia, 16 dias
+inteiros —, enquanto `nexopm.com` e `storage.nexopm.com` respondiam 200 de
+fora. No dia 1º o servidor reiniciou e voltou com outro IP de LAN: eu mesmo
+mudei, por causa de problemas com o servidor pai antigo. O `infra/app.yml`
+fixava os nomes públicos no IP de LAN antigo — era esse o atalho de rede
+interno do parágrafo anterior —, e o log mostrava
+`connect EHOSTUNREACH …:443`. Não era só a sonda. Toda chamada do lado do
+servidor ao storage falhou nesse período: exportação de dados, expurgo de
+currículos, qualquer operação S3 feita pelo servidor. Os uploads do
+navegador por URL pré-assinada provavelmente não foram afetados, porque
+vão direto do cliente ao storage, mas isso eu não verifiquei.
+
+Então a página estava meio certa: a aplicação estava no ar pra quem
+chegava de fora, e o storage estava de fato inalcançável pra própria
+aplicação. O que falhou foi o que deveria ter me feito olhar. Saiu um
+único alerta no Slack, no começo; como os alertas só saem em transição, 17
+dias parados no mesmo estado não geraram mais nenhum. É a lição deste post
+de novo: a sonda mediu o caminho dela, não o do cliente, e o alerta que
+deveria compensar isso falou uma vez e calou.
+Corrigi as duas coisas: os containers chegam ao nginx por `host-gateway`,
+que acompanha o host para onde o IP de LAN dele for
+([`596ddc4`](https://github.com/castrogusttavo/nexo/commit/596ddc4b)), e enquanto um componente segue fora do ar o
+Slack recebe um lembrete a cada 6 h ([`719a766`](https://github.com/castrogusttavo/nexo/commit/719a766c)). Aplicação
+e Armazenamento voltaram às 18:48 UTC de 18 de outubro.
 
 ## O que isso prova, e o que não prova
 
@@ -297,7 +313,8 @@ credencial rejeitada do AbacatePay.
 Não prova que o e-mail da Nexo tem 99,7% de disponibilidade no sentido
 que um cliente entende: prova que, medido de dentro do próprio servidor,
 com a definição de "respondeu", ele teve. Não prova que a régua nova está
-certa — a página está, neste exato momento, mostrando 16 dias de queda de
-um componente que está no ar. Uma página de status honesta não é a que
+certa — em outubro a página passou 17 dias mostrando a aplicação em queda
+enquanto ela respondia normalmente de fora, com um único alerta no
+primeiro dia. Uma página de status honesta não é a que
 mostra o número alto; é a que mede de onde o cliente está. A da Nexo ainda
 não mede.
