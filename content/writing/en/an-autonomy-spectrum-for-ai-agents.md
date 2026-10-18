@@ -254,7 +254,9 @@ I have no usage numbers to put next to it — how many workspaces turned
 Autopilot on, how many approvals expire in the inbox. What's countable today
 is the registry: 98 tools, 54 writes, 10 deletes (never exposed over MCP,
 always approved for agents) and 5 marked `customerFacing` (always sent back
-to confirmation over MCP).
+to confirmation over MCP). That number moves with every batch of tools;
+the live list, generated from the registry itself with what each tool does,
+is at `/dev/mcp` in the app.
 
 ## Where it breaks / limitations
 
