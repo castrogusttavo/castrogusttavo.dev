@@ -149,8 +149,8 @@ same; another sends the same `PATCH` and then requests
 `/api/admin/careers`, requiring **403**. Schema and service tests check
 the field is dropped at both layers.
 
-The commit is from 21:51 on September 27 (UTC−3). The CD run that took
-it to production finished at 22:32 the same night.
+The commit is from 21:51 on September 27 (UTC−3). The fix was live at
+22:31 the same night.
 
 ## The rest of the admin week
 
@@ -191,16 +191,29 @@ the data it reads can be written through another path.
 
 ## Where it broke
 
-**The production window existed, and I didn't sweep its logs.** The
-allowlist was only configured in production on September 26
-(`f9762258`); before that, the admin area opened for nobody. Between that
-configuration and the moment I registered the account for the allowlisted
-address, the preconditions held in production. The window was a little
-over a day at most, but it wasn't zero, and what happened in it isn't in
-this post because I didn't go and look.
+**The production window existed.** The allowlist went live on
+September 26 at 13:43 (UTC−3), when the environment sync pushed
+`PLATFORM_ADMIN_EMAILS` to production, about 18 minutes ahead of the CD
+run; before that, the admin area opened for nobody. The window closed on
+September 27 at 21:09, when I registered the account for the allowlisted
+address: the field is unique, so once the address was taken, the swap
+was refused. That's **~31h26** with the preconditions holding in
+production. The fix itself only went live at 22:31.
+
+What I could check about that window:
+
+- I registered the allowlisted address with no conflict, so at that
+  moment no account held it;
+- only one account on Nexo has 2FA on, mine, and the path to admin goes
+  through turning 2FA on;
+- the `career_jobs` table is empty: no job post was ever created, by
+  anyone;
+- nginx only keeps 14 days of logs, which no longer cover the window.
+
+> [FILL IN: Axiom search result]
 
 **The defect was written down, under the wrong name.** In my
-architecture notes, since June, there was a pending-review item: "today
+architecture notes, since May, there was a pending-review item: "today
 `PATCH /api/users/me { email }` keeps `emailVerified=true`". It was filed
 as an account-flow fix. In July the admin allowlist arrived, and e-mail
 became an authorization attribute. Nobody went back to the note. The
@@ -224,10 +237,13 @@ cost of migrating outweighs today's surface. That's a choice, and it
 depends on no other path being able to write the e-mail, which is exactly
 the premise that failed this time.
 
-**The page title gave the area away.** In the audit, the prerendered
-shell sent the admin pages' `<title>` to anyone, so the 404 hid the
-content but not the route's existence. No data leaks that way, and I
-haven't changed it.
+**The page title gave the area away.** In the audit, it looked like
+the prerendered shell sent the admin pages' `<title>` to a signed-in
+user outside the allowlist: the 404 would hide the content but not the
+route's existence. Plausible, but I never reproduced it. No data would
+leak that way, and I fixed it anyway in [`d321d876`](https://github.com/castrogusttavo/nexo/commit/d321d876): titles are
+now decided behind the admin gate, through `adminMetadata`, with an e2e
+test covering it.
 
 ## What this proves, and what it doesn't
 
@@ -237,8 +253,9 @@ and requires a 403, and that the fix reached production the same night
 the problem was reproduced. It proves a correct authorization gate isn't
 enough when the data it reads is writable through another endpoint.
 
-It doesn't prove nobody used the production window, because its logs
-weren't swept. It doesn't prove there's no other sensitive field being
+It doesn't prove, on its own, that nobody used the production window:
+what I have is the evidence listed above, and the nginx logs no longer
+cover that period. It doesn't prove there's no other sensitive field being
 mass-assigned in the other 10 services. And it doesn't prove an e-mail
 allowlist is safe: only that, today, I know of no other way to write an
 account's e-mail.

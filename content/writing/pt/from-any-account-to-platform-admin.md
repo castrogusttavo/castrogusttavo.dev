@@ -151,8 +151,8 @@ outro manda o mesmo `PATCH` e depois pede `/api/admin/careers`, exigindo
 **403**. Os testes de schema e de service conferem que o campo é
 descartado nas duas camadas.
 
-O commit é das 21:51 de 27/09. O CD que levou ele para produção terminou
-às 22:32 do mesmo dia.
+O commit é das 21:51 de 27/09. A correção estava no ar às 22:31 do mesmo
+dia.
 
 ## O resto da semana do admin
 
@@ -193,16 +193,29 @@ ser escrito por outro caminho.
 
 ## Onde quebrou
 
-**A janela em produção existiu, e eu não varri os logs dela.** A
-allowlist só foi configurada em produção em 26/09 (`f9762258`); antes
-disso, a área de admin não abria para ninguém. Entre essa configuração e
-o momento em que registrei a conta com o endereço da allowlist, as
-pré-condições estavam satisfeitas em produção. A janela foi de pouco mais
-de um dia, no máximo, mas não foi zero, e o resultado de quem passou por ela não está neste post
-porque eu não fui olhar.
+**A janela em produção existiu.** A allowlist entrou no ar em 26/09, às
+13:43 (-03), quando a sincronização das variáveis de ambiente pôs
+`PLATFORM_ADMIN_EMAILS` em produção, cerca de 18 minutos antes do CD;
+antes disso, a área de admin não abria para ninguém. A janela fechou em
+27/09, às 21:09, quando registrei a conta com o endereço da allowlist:
+como o campo é único, o endereço passou a estar ocupado e a troca passou
+a ser recusada. Foram **~31h26** com as pré-condições satisfeitas em
+produção. A correção em si só entrou no ar às 22:31.
+
+O que consegui verificar sobre essa janela:
+
+- registrei o endereço da allowlist sem conflito, ou seja, naquele
+  momento nenhuma conta usava aquele e-mail;
+- só uma conta na Nexo tem 2FA ligada, a minha, e o caminho até o admin
+  passa por ligar a 2FA;
+- a tabela `career_jobs` está vazia: nenhuma vaga foi criada, por
+  ninguém;
+- os logs do nginx guardam só 14 dias e já não cobrem a janela.
+
+> [PREENCHER: resultado da busca no Axiom]
 
 **O defeito estava anotado, com o nome errado.** Nas minhas notas de
-arquitetura, desde junho, havia um item de revisão pendente: "hoje
+arquitetura, desde maio, havia um item de revisão pendente: "hoje
 `PATCH /api/users/me { email }` mantém `emailVerified=true`". Estava
 classificado como correção de fluxo de conta. Em julho, a allowlist de
 admin entrou, e o e-mail virou atributo de autorização. Ninguém voltou
@@ -225,9 +238,13 @@ conhecido e o custo de migrar é maior que o tamanho da superfície hoje.
 É uma escolha, e ela depende de nenhum outro caminho conseguir escrever o
 e-mail, o que é exatamente a premissa que falhou desta vez.
 
-**O título da página entregava a área.** Na auditoria, o shell
-prerenderizado mandava o `<title>` das páginas de admin para qualquer um, então o 404 esconde o
-conteúdo, mas não a existência da rota. Nenhum dado vaza por ali, e eu não mexi nisso.
+**O título da página entregava a área.** Na auditoria, parecia que o
+shell prerenderizado mandava o `<title>` das páginas de admin para um
+usuário logado fora da allowlist: o 404 esconderia o conteúdo, mas não a
+existência da rota. Era plausível, mas não cheguei a reproduzir. Nenhum
+dado vazaria por ali, e mesmo assim corrigi em
+[`d321d876`](https://github.com/castrogusttavo/nexo/commit/d321d876): os títulos passaram a ser decididos atrás do portão
+de admin, via `adminMetadata`, com um teste e2e cobrindo.
 
 ## O que isso prova, e o que não prova
 
@@ -238,8 +255,9 @@ em que o problema foi reproduzido. Prova que um portão de autorização
 correto não basta quando o dado que ele lê é gravável por outro
 endpoint.
 
-Não prova que ninguém usou a janela em produção, porque os logs dela não
-foram varridos. Não prova que não há outro campo sensível sendo gravado
+Não prova, por si só, que ninguém usou a janela em produção: o que
+tenho são as evidências listadas acima, e os logs do nginx já não cobrem
+o período. Não prova que não há outro campo sensível sendo gravado
 por mass assignment nos outros 10 services. E não prova que a allowlist
 por e-mail é segura: prova só que, hoje, não conheço outro jeito de
 escrever o e-mail de uma conta.
