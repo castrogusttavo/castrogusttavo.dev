@@ -1,6 +1,6 @@
 ---
 title: A layout is not a gate — the redirect that didn't stop the rest of the page from rendering
-description: "Nexo's consent gate lived in a layout, under a comment saying not to remove or weaken it. It redirected correctly, and an unconsented member still got the workspace id and their own id in the RSC payload: in the App Router, the layouts of a path render in parallel, and a redirect in the top one doesn't cancel the ones below. This is the leak, the test helper that hid its path, swapping the gate for a Data Access Layer next to the data, and what that unlocked: the whole signed-in app as a partial prerender."
+description: "Nexo's consent gate lived in a layout, under a comment saying not to remove or weaken it. It redirected correctly, and an unconsented member still got data in the RSC payload they should only see after accepting — on the workspace home, the workspace id and their own id: in the App Router, the layouts of a path render in parallel, and a redirect in the top one doesn't cancel the ones below. This is the leak, the test helper that hid its path, swapping the gate for a Data Access Layer next to the data, and what that unlocked: the whole signed-in app as a partial prerender."
 icon: bug
 date: "2026-11-03"
 ---
@@ -55,14 +55,24 @@ membership on its own — without checking consent — and handed
 component. Client component props travel in the RSC payload. The redirect
 arrived alongside them.
 
-To size the damage precisely: only ids leaked. The sidebar fetches the
-project list itself from the API, and the API routes already had their own
-consent gate (the same `requireConsent`). And whoever received those ids
-was a member of that workspace — their own id and the id of a workspace
-they belong to. Not a cross-tenant leak. A breach of the rule the comment
-promised to enforce: nothing renders before consent. The code sending the
-`workspaceId` from that layout has been in the repository since June 19;
-the `userId` joined on October 13.
+To size the damage: whoever received data was a member of that workspace,
+never a stranger and never another tenant. Anonymous visitors and
+non-members stopped at the session and membership checks every page
+already made. What the member got before consenting depended on the page.
+On the workspace home it was ids: theirs and the workspace's. That's the
+page the test caught.
+
+But the project contexts and the billing page skipped consent the same
+way: a project page would have carried the project DTO (name, description
+and settings), an issue page the issue title, and billing the plan, seats
+and trial dates. All data the member sees after accepting. None of it
+should render before. And until the fix landed, the proxy checked no
+consent at all: it was every visit by an unconsented member, not an edge
+case. In production it stayed theoretical: when I checked, every member
+had accepted the terms.
+
+The code sending the `workspaceId` from `(home)/layout` has been in the
+repository since June 19; the `userId` joined on October 13.
 
 The layout's comment had sensed the problem from the wrong side, too. It
 asked not to wrap the gate in `<Suspense>` "because the page would render
@@ -266,7 +276,7 @@ With no gate in the layout, that UX change became possible:
 
 | | Layout gate | DAL + optimistic proxy |
 | --- | --- | --- |
-| Unconsented member, no cookie cache | redirect **and** ids in the payload | redirect, no ids in the body |
+| Unconsented member (before the fix: always; after: only without the cookie cache) | redirect **and** page data in the payload | redirect, no workspace id or project name in the body |
 | Where STR-61 is enforced at render | 1 layout | every workspace data read |
 | Pages validated as instant (`instant = true`) | only those that opted in | **32** |
 | Segments that block on purpose (`instant = false`) | the whole private tree | **7** (6 pages and the admin layout) |
@@ -330,8 +340,9 @@ types.
 
 And a note for anyone checking the history: the deletion of
 `(private)/layout.tsx` landed inside commit `7db5f436`, whose title is
-about a form test timeout. The file's `git log` leads there; the actual
-change is described in `bad53505`, right after.
+about a form test timeout. The file's `git log` leads there. That commit
+really does delete the file, but the explanation is in `bad53505`, 4
+seconds later.
 
 ## What this proves, and what it doesn't
 

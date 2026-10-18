@@ -1,6 +1,6 @@
 ---
 title: Layout não é portão — o redirect que não impedia o resto da página de renderizar
-description: "O portão de consentimento da Nexo morava num layout, com um comentário dizendo pra não removê-lo nem enfraquecê-lo. Ele redirecionava certo, e mesmo assim um membro sem consentimento recebia o id do workspace e o próprio id no payload RSC: no App Router, os layouts de um caminho renderizam em paralelo, e um redirect no de cima não cancela os de baixo. Este post é o vazamento, o helper de teste que escondia o caminho dele, a troca do portão por uma Data Access Layer ao lado do dado, e o que isso destravou: o app logado inteiro como prerender parcial."
+description: "O portão de consentimento da Nexo morava num layout, com um comentário dizendo pra não removê-lo nem enfraquecê-lo. Ele redirecionava certo, e mesmo assim um membro sem consentimento recebia no payload RSC dado que só deveria ver depois de aceitar — na home do workspace, o id do workspace e o próprio id: no App Router, os layouts de um caminho renderizam em paralelo, e um redirect no de cima não cancela os de baixo. Este post é o vazamento, o helper de teste que escondia o caminho dele, a troca do portão por uma Data Access Layer ao lado do dado, e o que isso destravou: o app logado inteiro como prerender parcial."
 icon: bug
 date: "2026-11-03"
 ---
@@ -57,14 +57,24 @@ consentimento — e entregava `workspaceId`, `userId` e `isPrivileged` pro
 `SidebarProjects`, um client component. Props de client component vão no
 payload RSC. O redirect chegava junto com elas.
 
-Sendo preciso sobre o tamanho do estrago: só ids vazavam. A lista de
-projetos em si o sidebar busca pela API, e as rotas de API já tinham o
-próprio portão de consentimento (o mesmo `requireConsent`). E quem recebia
-esses ids era um membro do próprio workspace — o id dele mesmo e o de um
-workspace a que ele pertence. Não é um vazamento entre tenants. É uma
-violação da regra que o comentário prometia cumprir: nada renderiza antes
-do consentimento. O código que mandava o `workspaceId` desse layout está
-no repositório desde 19 de junho; o `userId` entrou em 13 de outubro.
+Pra medir o estrago: quem recebeu dados era membro daquele workspace,
+nunca um estranho e nunca outro tenant. Visitantes anônimos e não membros
+pararam nas checagens de sessão e de membership que cada página já fazia.
+O que o membro recebia antes de consentir dependia da página. Na home do
+workspace eram ids: o dele e o do workspace. Foi essa página que o teste
+pegou.
+
+Mas os contextos de projeto e a página de billing pulavam o consentimento
+do mesmo jeito: uma página de projeto levaria o DTO do projeto (nome,
+descrição e configurações), uma de issue o título da issue, e o billing o
+plano, os seats e as datas do trial. Tudo dado que o membro vê depois de
+aceitar. Nada disso deveria renderizar antes. E até o fix entrar, o proxy
+não checava consentimento nenhum: era toda visita de um membro sem
+consentimento, não um caso de borda. Em produção ficou teórico: quando
+conferi, todo membro tinha aceitado os termos.
+
+O código que mandava o `workspaceId` do `(home)/layout` está no repositório
+desde 19 de junho; o `userId` entrou em 13 de outubro.
 
 O comentário do layout, aliás, já pressentia o problema pelo lado errado.
 Ele pedia pra não envolver o portão em `<Suspense>` "porque a página
@@ -276,7 +286,7 @@ Sem portão no layout, essa mudança de UX ficou possível:
 
 | | Portão no layout | DAL + proxy otimista |
 | --- | --- | --- |
-| Membro sem consentimento, sem cookie cache | redirect **e** ids no payload | redirect, corpo sem ids |
+| Membro sem consentimento (antes do fix: sempre; depois: só sem o cookie cache) | redirect **e** dado da página no payload | redirect, corpo sem id do workspace nem nome de projeto |
 | Onde a regra STR-61 é aplicada em render | 1 layout | toda leitura de dado do workspace |
 | Páginas validadas como instantâneas (`instant = true`) | só as que optavam | **32** |
 | Segmentos que bloqueiam de propósito (`instant = false`) | a árvore privada inteira | **7** (6 páginas e o layout admin) |
@@ -342,8 +352,8 @@ disciplina, não tipo.
 E uma nota pra quem for conferir o histórico: a remoção do
 `(private)/layout.tsx` entrou no repositório dentro do commit
 `7db5f436`, cujo título fala de um timeout de teste de formulário. O
-`git log` do arquivo leva até lá; a mudança de verdade está descrita no
-`bad53505`, logo depois.
+`git log` do arquivo leva até lá. O commit apaga mesmo o arquivo, mas a
+explicação da mudança está no `bad53505`, 4 segundos depois.
 
 ## O que isso prova, e o que não prova
 
