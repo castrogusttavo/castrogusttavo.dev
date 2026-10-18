@@ -212,6 +212,8 @@ status page's public API (`/api/status`, queried 2026-10-17):
 | Sep 24 | **99.7%** | 99.7% | 100% |
 | Sep 25 | 100% | 100% | 100% |
 
+Unrounded, the 22nd closed at 51.736% and the 24th at 99.653%.
+
 Across the 52 recorded days before the fix (July 21 to September 22, with
 a September 7–18 gap with no data), e-mail averaged **87.3%** per day.
 Across the first seven full days on the new ruler (September 24–30),
@@ -220,7 +222,8 @@ Across the first seven full days on the new ruler (September 24–30),
 The 23rd is mixed: the current day's rollup is recomputed on every
 collection, so after the deploy it was rebuilt with the new rule over the
 whole morning's samples. The missing 3.1% are samples recorded as
-failures, not as slowness.
+failures, not as slowness. A partial reading of the 23rd, taken before the
+day closed, showed 50.6%; the day closed at 96.9%.
 
 ## Where it broke
 
@@ -260,18 +263,30 @@ server can't reach its own public IP (no NAT hairpin), so the app probe
 reaches the public URL through an internal network shortcut, not the path
 a customer takes. And it's one region: there's no probe outside São Paulo.
 
-**And as I write this, the page is wrong again.** Queried on October 17,
-it shows Application and Storage in **full outage since October 1** — 0%
-per day, 16 days running — while `nexopm.com` and `storage.nexopm.com`
-answer 200 from outside and the status API itself, served by the "down"
-application, responds normally. On the 1st, e-mail and payment dipped too
-(87.6% and 89.8%) and recovered the next day; app and storage didn't.
-Database, cache, auth and jobs stay green. I haven't diagnosed the cause
-yet. What I can say is that it's the same class of defect as this whole
-post — the probe measuring its own path, not the customer's — and that
-the alert design doesn't help here: alerts fire on transitions, and a
-component stuck in one state for 16 days generates nothing after the
-first.
+**In October, the same lesson again.** From October 1 to 18 the page
+showed Application and Storage in **full outage** — 0% per day, 16 whole
+days — while `nexopm.com` and `storage.nexopm.com` answered 200 from
+outside. On the 1st the host rebooted and came back with a different LAN
+IP: I changed it myself, because of problems with the old parent server.
+`infra/app.yml` pinned the public hostnames to the old LAN IP — that was
+the internal shortcut from the previous paragraph — and the log showed
+`connect EHOSTUNREACH …:443`. It wasn't only the probe. Every server-side
+call to storage failed in that window: data export, the CV purge, any S3
+operation made by the server. Browser uploads through presigned URLs were
+probably unaffected, since they go straight from the client to storage,
+but I didn't verify that.
+
+So the page was half right: the app was up for anyone coming from outside,
+and storage really was unreachable for the app itself. What failed was the
+thing that should have made me look. A single Slack alert went out, at the
+start; since alerts only fire on transitions, 17 days stuck in one state
+produced nothing more. It's this post's lesson again: the probe measured
+its own path, not the customer's, and the alert meant to make up for that
+spoke once and went quiet. I fixed both: containers
+now reach nginx through `host-gateway`, which follows the host wherever its
+LAN IP goes ([`596ddc4`](https://github.com/castrogusttavo/nexo/commit/596ddc4b)), and while a component stays down
+Slack gets a reminder every 6 h ([`719a766`](https://github.com/castrogusttavo/nexo/commit/719a766c)). Application and
+Storage came back at 18:48 UTC on October 18.
 
 ## What this proves, and what it doesn't
 
@@ -285,6 +300,6 @@ rejected credential.
 It doesn't prove Nexo's e-mail has 99.7% availability in the sense a
 customer means: it proves that, measured from inside its own server with
 "answered" as the definition, it did. It doesn't prove the new ruler is
-right — the page is, right now, showing 16 days of outage for a component
-that's up. An honest status page isn't the one showing the high number;
+right — in October the page spent 17 days showing the app as down while it
+answered normally from outside, with a single alert on the first day. An honest status page isn't the one showing the high number;
 it's the one measuring from where the customer stands. Nexo's doesn't yet.
