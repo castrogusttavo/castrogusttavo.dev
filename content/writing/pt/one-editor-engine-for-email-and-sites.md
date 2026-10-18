@@ -267,7 +267,8 @@ próprio usuário, e cada desfazer passa de novo pelo `applyOp` — ou seja,
 removido por outra pessoa) é descartado, e os passos abaixo dele
 continuam alcançáveis. O desfazer ignora `LOCKED` e `REQUIRED`, porque a
 op original já passou por essas checagens; as regras estruturais
-continuam valendo.
+continuam valendo. Isso cobria o nó que sumiu, mas não o campo que outra
+pessoa regravou depois — o buraco e a correção estão em "Onde quebra".
 
 ### Persistência pelo service dono, e merge com o mundo de fora
 
@@ -322,7 +323,9 @@ arquivos que precisam de Postgres de teste (o repositório e a integração
 de persistência da coedição), que eu não tinha de pé. Só o binding Yjs
 tem 24 testes, incluindo edição concorrente de caminhos irmãos num
 objeto aninhado, nó movido para dois pais, insert numa subárvore
-removida e o teto de `maxChildren` com inserts concorrentes.
+removida e o teto de `maxChildren` com inserts concorrentes. Esses números
+são de antes da correção do desfazer descrita abaixo, que somou mais seis
+testes de dois clientes ao binding (24 → 30) e um arquivo de teste novo.
 
 A comparação contra "dois editores" é contrafactual — o segundo editor
 nunca foi escrito, então não existe número de bug evitado para mostrar.
@@ -343,13 +346,42 @@ reiniciado a cada mudança até o `maxDebounce`, que por padrão é 10 s, e o
 servidor não sobrescreve nenhum dos dois. Com edição contínua, a janela
 revertida pode passar bem de 2 s.
 
-**O desfazer usa a inversa da época.** A inversa de um `update` guarda os
-valores de antes da minha edição. Se eu mudo a cor de um título, o Bruno
-muda a mesma cor depois, e eu desfaço, a minha inversa restaura o valor
-original por cima do dele. O teste que existe cobre o caso de caminhos
-diferentes (desfazer a minha cor mantém o texto do Bruno), não o do mesmo
-caminho. É o preço de não usar `Y.UndoManager`: o histórico revalidado
-pelo catálogo não sabe que alguém escreveu depois.
+**O desfazer apagava a edição de outra pessoa — corrigido.** A inversa de
+um `update` guarda os valores de antes da minha edição. Se eu mudava a cor
+de um título, o Bruno mudava a mesma cor depois, e eu desfazia, a minha
+inversa restaurava o valor original por cima do dele, para todo mundo. O
+refazer tinha o mesmo problema. O teste que existia cobria caminhos
+diferentes (desfazer a minha cor mantém o texto do Bruno), não o mesmo
+caminho, e a única proteção de coedição era descartar o passo quando o nó
+tinha sumido. Era o preço de não usar `Y.UndoManager`: o histórico
+revalidado pelo catálogo não sabia que alguém tinha escrito depois.
+
+A correção ([steel-so/steel#126](https://github.com/steel-so/steel/pull/126),
+em homologação desde 18/10/2026, Steel `2026.10.18.4`) é um
+comparar-e-gravar por nó e por campo. Cada passo do histórico passa a
+lembrar, para cada caminho de prop ou chave de `meta` que a volta dele vai
+escrever, o valor que **ele** deixou ali (`src/lib/canvas/history-guard.ts`).
+Antes de desfazer ou refazer, `guardOp` tira da op as escritas cujo campo
+não tem mais esse valor — comparação estrutural, porque a projeção remota
+remonta os objetos —, e o resto do passo se aplica normalmente. Se o Bruno
+mexeu na cor depois de mim, o meu desfazer pula a cor e o editor avisa:
+"Parte do desfazer foi ignorada porque outra pessoa alterou o mesmo
+campo." Um passo que fica sem nada para aplicar sai do histórico, como o
+passo de nó removido já saía. A expectativa é recalculada depois de cada
+ida e volta, então o refazer contém só o que o desfazer de fato desfez.
+Antes da correção, um teste com dois clientes intercalando edições falhou
+6 de 6 vezes; o binding ganhou ainda um teste de propriedade aleatório
+com o invariante de que um desfazer ou refazer só muda um campo que ainda
+está como aquela pessoa deixou.
+
+Duas coisas continuam valendo. Ops estruturais (inserir, remover, mover)
+ficam fora do comparar-e-gravar e seguem a regra antiga: revalidação pelo
+catálogo no replay — desfazer o meu `move` devolve o nó para onde estava
+mesmo que outra pessoa o tenha movido depois, se o catálogo aceitar. E o
+campo é comparado no caminho que a inversa escreve: se o meu passo criou o
+objeto `style` inteiro, uma mudança de outra pessoa numa folha dentro dele
+conta como conflito e o meu desfazer pula o `style` todo. Foi escolha:
+entre pular o meu desfazer e apagar o valor do vizinho, a correção pula.
 
 **O servidor realtime engordou.** Para gravar pelo service dono, o
 processo realtime passou a empacotar os services de sites e de e-mail —
@@ -357,23 +389,26 @@ inclusive a renderização do e-mail. O que era um servidor de Yjs da Wiki
 virou um processo que carrega metade do domínio do CRM. A ADR aceita isso
 como consequência, mas não mede o tamanho do bundle.
 
-**O hash é mais sensível do que o conteúdo.** O hash usa JSON com chaves
-ordenadas — necessário porque o `jsonb` do Postgres reordena chaves. A
-ADR registra como consequência que qualquer gravação fora da sala, mesmo
-de conteúdo igual, conta como mudança externa e dispara o merge. Lendo
-`stableStringify`, o caso é mais estreito do que isso: o mesmo JSON gera o
-mesmo hash. O que dispara merge à toa é um documento **equivalente mas não
+**O hash é um pouco mais sensível do que o conteúdo.** O hash usa JSON com
+chaves ordenadas — necessário porque o `jsonb` do Postgres reordena chaves —,
+e com isso o mesmo conteúdo gera o mesmo hash: uma gravação fora da sala
+com conteúdo idêntico **não** conta como mudança externa. A ADR 0027
+dizia o contrário nas consequências; o código estava certo, e a ADR
+ganhou uma nota de atualização corrigindo o texto
+([steel-so/steel#126](https://github.com/steel-so/steel/pull/126)). O
+que ainda dispara merge à toa é um documento **equivalente mas não
 idêntico** — por exemplo, um campo `null` onde antes não havia chave
-(`stableStringify` só descarta `undefined`). O merge em si é nó a
-nó e não escreve nada onde não há diferença, então o custo é trabalho
-jogado fora, não dado errado.
+(`stableStringify` só descarta `undefined`). O merge em si é nó a nó e
+não escreve nada onde não há diferença, então o custo é trabalho jogado
+fora, não dado errado.
 
 **E-mails antigos ficam de fora.** Templates `LEGACY` (HTML livre do
 editor antigo, ou os dois layouts originais) continuam como estavam e
 nunca entram no canvas. Os documentos `version: 1` do construtor de
-blocos são convertidos para o formato do canvas ao abrir; na sala de
-coedição, um template v1 convertido só passa a ter ids estáveis depois da
-primeira gravação como v2.
+blocos são convertidos para o formato do canvas ao abrir. A conversão é
+determinística — os ids saem dos ids das seções da v1, então converter de
+novo dá os mesmos ids —, e na sala de coedição o template convertido entra
+com hash vazio, o que só força a primeira gravação a salvá-lo como v2.
 
 ## O que isso prova, e o que não prova
 

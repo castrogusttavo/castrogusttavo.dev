@@ -236,7 +236,9 @@ Yjs ships its own undo manager. ADR 0027 kept the store's inverse-op
 history instead: it holds only the user's own ops, and every undo goes
 back through `applyOp` — it's **revalidated by the catalog**. A step that
 no longer applies (someone else removed the node) is dropped, and the
-steps below stay reachable.
+steps below stay reachable. That covered a node that vanished, not a field
+someone else rewrote afterwards — the hole and its fix are under "Where it
+breaks".
 
 ### Persisting through the owning service, merging with the outside world
 
@@ -289,7 +291,9 @@ test Postgres (the repository and the co-editing persistence
 integration), which I didn't have running. The Yjs binding alone has 24
 tests, including concurrent edits of sibling paths in a nested object, a
 node moved into two parents, an insert into a removed subtree, and the
-`maxChildren` cap under concurrent inserts.
+`maxChildren` cap under concurrent inserts. Those counts predate the undo
+fix described below, which added six two-client tests to the binding
+(24 → 30) and a new test file.
 
 The comparison against "two editors" is counterfactual — the second
 editor was never written, so there's no count of bugs avoided to show.
@@ -309,13 +313,42 @@ Hocuspocus's default debounce; but that debounce restarts on every change
 up to `maxDebounce`, 10 s by default, and the server overrides neither.
 Under continuous editing the reverted window can be well over 2 s.
 
-**Undo uses the inverse from back then.** An `update`'s inverse stores the
-values from before my edit. If I change a heading's color, Bruno changes
-the same color afterwards, and I undo, my inverse restores the original
-value over his. The existing test covers different paths (undoing my color
-keeps Bruno's text), not the same path. That's the price of skipping
-`Y.UndoManager`: a catalog-revalidated history doesn't know someone wrote
+**Undo wiped out someone else's edit — fixed.** An `update`'s inverse
+stores the values from before my edit. If I changed a heading's color,
+Bruno changed the same color afterwards, and I undid, my inverse restored
+the original value over his, for everyone. Redo had the same problem. The
+existing test covered different paths (undoing my color keeps Bruno's
+text), not the same path, and the only co-editing guard was dropping the
+step when its node was gone. That was the price of skipping
+`Y.UndoManager`: a catalog-revalidated history didn't know someone wrote
 afterwards.
+
+The fix ([steel-so/steel#126](https://github.com/steel-so/steel/pull/126),
+in staging since 2026-10-18, Steel `2026.10.18.4`) is compare-and-set per
+node and per field. Every history step now remembers, for each props path
+or `meta` key its return trip will write, the value **it** left there
+(`src/lib/canvas/history-guard.ts`). Before undoing or redoing, `guardOp`
+strips the writes whose field no longer holds that value — a structural
+comparison, since remote projection rebuilds objects — and the rest of the
+step applies as usual. If Bruno touched the color after me, my undo skips
+the color and the editor warns: "Parte do desfazer foi ignorada porque
+outra pessoa alterou o mesmo campo." ("Part of the undo was skipped
+because someone else changed the same field.") A step left with nothing to
+apply leaves the history, as a removed-node step already did. Expectations
+are recomputed after every trip, so redo holds only what the undo actually
+undid. Before the fix, a two-client test interleaving edits failed 6 out of
+6 times; the binding also gained a randomized property test whose
+invariant is that an undo or redo only changes a field that still holds
+what that person left there.
+
+Two things still stand. Structural ops (insert, remove, move) are outside
+compare-and-set and keep the old rule — catalog revalidation on replay —
+so undoing my `move` puts the node back even if someone moved it
+afterwards, as long as the catalog accepts it. And a field is compared at
+the path the inverse writes: if my step created the whole `style` object,
+someone else's change to a leaf inside it counts as a conflict and my undo
+skips all of `style`. That was a choice: between skipping my undo and
+deleting the other person's value, the fix skips.
 
 **The realtime server got heavier.** To save through the owning services,
 the realtime process now bundles the site and email services — email
@@ -323,21 +356,25 @@ rendering included. What was the Wiki's Yjs server became a process
 carrying half the CRM domain. The ADR accepts this but doesn't measure the
 bundle.
 
-**The hash is more sensitive than the content.** It uses JSON with sorted
-keys — needed because Postgres `jsonb` reorders them. The ADR records that
-any save outside the room, even with identical content, counts as an
-external change and triggers a merge. Reading `stableStringify`, the case
-is narrower: identical JSON hashes the same. What triggers a pointless
-merge is a document that's **equivalent but not identical** — say, a
-`null` field where there used to be no key (`stableStringify` only drops
-`undefined`). The merge is node by node and writes nothing where nothing
-differs, so the cost is wasted work, not wrong data.
+**The hash is a bit more sensitive than the content.** It uses JSON with
+sorted keys — needed because Postgres `jsonb` reorders them — so identical
+content hashes the same: a save outside the room with identical content
+does **not** count as an external change. ADR 0027's consequences said the
+opposite; the code was right, and the ADR got an update note correcting
+the text ([steel-so/steel#126](https://github.com/steel-so/steel/pull/126)).
+What still triggers a pointless merge is a document that's **equivalent
+but not identical** — say, a `null` field where there used to be no key
+(`stableStringify` only drops `undefined`). The merge is node by node and
+writes nothing where nothing differs, so the cost is wasted work, not wrong
+data.
 
 **Old emails stay out.** `LEGACY` templates (free HTML from the old
 editor, or the two original layouts) stay as they are and never enter the
-canvas. `version: 1` block-builder documents are converted on open; in a
-co-editing room a converted v1 template only gets stable ids after its
-first save as v2.
+canvas. `version: 1` block-builder documents are converted on open. The
+conversion is deterministic — ids derive from the v1 section ids, so
+converting again yields the same ids — and in a co-editing room the
+converted template starts with an empty hash, which only forces its first
+save to store it as v2.
 
 ## What this proves, and what it doesn't
 
