@@ -1,15 +1,16 @@
 ---
 title: Nexo's architecture in three diagrams — what runs, what's a target, and what survives if the server disappears
-description: "In eight and a half months Nexo piled up 1,255 commits, 943 of them co-signed by an agent, and an architecture that no longer fits in a paragraph. This post is the map in three diagrams: what actually runs in production (nginx, three containers off the same image, Postgres with PgBouncer and a replica, TLS-only Redis, MinIO) and what is still only a target in the drawing; the backup that pg_dumps and mirrors MinIO every day at 03:15 and ships it encrypted to Backblaze B2; the four test layers that landed in three weeks — contract, browser, visual and mutation; and the CI migration to Avrea runners, opened by a bot and fixed by me."
+description: "In eight and a half months Nexo piled up 1,255 commits, 936 of them co-signed by an agent, and an architecture that no longer fits in a paragraph. This post is the map in three diagrams: what actually runs in production (nginx, three containers off the same image, Postgres, TLS-only Redis, MinIO; PgBouncer and the replica arrived a week later) and what is still only a target in the drawing; the backup that pg_dumps and mirrors MinIO every day at 03:15 and ships it encrypted to Backblaze B2; the four test layers that landed in three weeks — contract, browser, visual and mutation; and the CI migration to Avrea runners, opened by a bot and fixed by me."
 icon: code
 date: "2026-09-20"
 ---
 
-Nexo has 1,255 commits. **943 of them** — 75% — carry a
+Nexo has 1,255 commits. **936 of them** — 75% — carry a
 `Co-Authored-By: Claude` trailer in the message. The first is from February
 8th; the most recent is from today. Over those eight and a half months the
 architecture went from "a Next.js talking to a Postgres" to three
-containers, a pooler, a read replica, eight test layers and a pipeline with
+containers, a pooler and a read replica in the drawing (in production,
+both arrived a week later), eight test layers and a pipeline with
 thirteen jobs.
 
 This post is the map. Three diagrams — global architecture, data and
@@ -93,6 +94,8 @@ Without it, a presigned storage URL (signed for the public host) doesn't
 work from inside the network.
 
 ## The database: a pooler and a replica born from a load test
+
+> **Correction (Nov 24, 2026):** this section described the development compose as if it were production's. On Sep 20, production ran Postgres alone, Redis on `bitnami/redis:latest` (it still does) and MinIO on `minio/minio:RELEASE.2025-02-28`, from Docker Hub; `quay.io` only applied to development and CI. The replica and PgBouncer reached production on Sep 26, and the app started going through the pooler on Sep 28. The story is in [The day MinIO disappeared](/en/writing/when-minio-disappeared).
 
 Postgres hasn't been alone for a few weeks now. In front of it sits a
 PgBouncer in transaction mode (`MAX_CLIENT_CONN: 200`,
@@ -397,9 +400,10 @@ want to pay for by the minute.
 You can count who worked on this repository with `git log` and the GitHub
 API, so here are the numbers instead of the adjective:
 
-- **Claude** — 943 of the 1,255 commits carry the co-authorship trailer,
-  starting February 8th. Across models: 501 Sonnet 5, 123 Opus 4.6, 113
-  Opus 4.7, 76 Opus 5, 65 Opus 4.8, 45 Sonnet 4.6, 41 Fable 5.
+- **Claude** — 936 of the 1,255 commits carry the co-authorship trailer,
+  starting February 8th. By trailer (970, since some commits carry more than
+  one): 494 Sonnet 5, 123 Opus 4.6, 113 Opus 4.7, 76 Opus 5, 76 Opus 4.8,
+  46 Sonnet 4.6, 41 Fable 5, 1 Opus 4.5.
 - **Dependabot** — 22 of the repository's 58 PRs. It's the only agent that
   always worked through PRs, because a dependency bump is exactly the kind
   of change where I want the diff isolated and CI running on its own before
