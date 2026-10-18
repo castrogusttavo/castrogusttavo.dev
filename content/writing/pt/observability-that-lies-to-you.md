@@ -1,6 +1,6 @@
 ---
 title: A observabilidade que mente pra você
-description: "Passei horas convencido de que o PostHog estava quebrado em produção na Nexo. Nunca esteve: o posthog-js descarta todo evento, em silêncio, quando o navegador parece automatizado, e eu estava verificando com um navegador automatizado. Puxando esse fio, apareceram mais três buracos: um GA4 que a nossa própria CSP bloqueava, um Sentry sem nenhum source map, e uma flag de privacidade que descartava quem tinha clicado em 'Aceitar'. Nenhum deles gerava erro."
+description: "Passei horas convencido de que o PostHog estava quebrado em produção na Nexo. Nunca esteve: o posthog-js descarta todo evento, em silêncio, quando o navegador parece automatizado, e eu estava verificando com um navegador automatizado. Puxando esse fio, apareceram mais três buracos: um GA4 que a própria CSP do Nexo bloqueava, um Sentry sem nenhum source map, e uma flag de privacidade que descartava quem tinha clicado em 'Aceitar'. Nenhum deles gerava erro."
 icon: bug
 date: "2026-12-03"
 ---
@@ -37,7 +37,7 @@ Antes desse dia, a Nexo tinha três ferramentas de medição no navegador, e
 nenhuma estava medindo o que eu achava:
 
 - **Vercel Analytics e Speed Insights**: os beacons iam para
-  `/_vercel/insights/*` na nossa própria origem, um caminho que só existe
+  `/_vercel/insights/*` na própria origem do Nexo, um caminho que só existe
   quando o app roda na Vercel. A Nexo roda num servidor próprio, então a
   resposta era um `307` para `/sign-in`. Não coletavam nada.
 - **Google Analytics 4**: montado atrás do banner de consentimento, sem
@@ -98,7 +98,7 @@ respondendo `200 {"status":"Ok"}`, sem violação de CSP. E testei o caminho
 real do visitante, clicando em "Aceitar" no banner, não só com o cookie de
 consentimento pré-gravado.
 
-### GA4: o script que a nossa CSP recusava
+### GA4: o script que a minha CSP recusava
 
 O Google Analytics estava montado atrás do consentimento e não coletava nada.
 O `gtag/js` vem de `googletagmanager.com`, e a CSP da Nexo

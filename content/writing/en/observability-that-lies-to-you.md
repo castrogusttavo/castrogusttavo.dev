@@ -1,6 +1,6 @@
 ---
 title: The observability that lies to you
-description: "I spent hours convinced PostHog was broken in Nexo's production. It never was: posthog-js silently drops every event when the browser looks automated, and I was checking with an automated browser. Pulling that thread surfaced three more holes: a GA4 our own CSP was blocking, a Sentry with zero source maps, and a privacy flag that discarded people who had clicked 'Accept'. None of them raised an error."
+description: "I spent hours convinced PostHog was broken in Nexo's production. It never was: posthog-js silently drops every event when the browser looks automated, and I was checking with an automated browser. Pulling that thread surfaced three more holes: a GA4 Nexo's own CSP was blocking, a Sentry with zero source maps, and a privacy flag that discarded people who had clicked 'Accept'. None of them raised an error."
 icon: bug
 date: "2026-12-03"
 ---
@@ -35,7 +35,7 @@ Before that day, Nexo had three in-browser measurement tools, and none of
 them was measuring what I thought:
 
 - **Vercel Analytics and Speed Insights**: their beacons posted to
-  `/_vercel/insights/*` on our own origin, a path that only exists on Vercel.
+  `/_vercel/insights/*` on Nexo's own origin, a path that only exists on Vercel.
   Nexo runs on its own server, so the answer was a `307` to `/sign-in`. They
   collected nothing.
 - **Google Analytics 4**: mounted behind the consent banner, collecting
@@ -93,7 +93,7 @@ consent, **zero** requests; with consent, `POST /ingest/e/` answering
 `200 {"status":"Ok"}`, no CSP violation. And I tested the visitor's real path,
 clicking "Aceitar" in the banner, not just a pre-set consent cookie.
 
-### GA4: the script our CSP refused
+### GA4: the script my CSP refused
 
 Google Analytics was mounted behind consent and collected nothing. `gtag/js`
 comes from `googletagmanager.com`, and Nexo's CSP
@@ -103,7 +103,7 @@ Every visit that accepted cookies produced a CSP violation and zero data.
 I didn't punch a hole in the CSP. With PostHog working, there was no reason
 for a second tool, let alone a blocked one. Commit `b7ebf52` removed GA, the
 `@next/third-parties` package, `NEXT_PUBLIC_GA_ID`, and the cookie-policy
-sentence claiming we used GA4.
+sentence claiming Nexo used GA4.
 
 The three deliberate events GA carried (`pricing_plan_click`,
 `blog_post_read`, `talk_to_sales_submit`) moved to PostHog through a new
@@ -244,7 +244,7 @@ present in the database, which is where revenue gets counted anyway.
 | Firefox with GPC or DNT | 0 events even after "Accept" | lock removed; the banner is the gate |
 | Product events | 3 (in GA, which collected nothing) | 3 marketing + 6 activation funnel |
 
-The honest comparison isn't "we collected little, now we collect a lot". It's
+The honest comparison isn't "I collected little, now I collect a lot". It's
 that I **believed** I had three tools measuring, and had zero. None of the
 four holes raised an error anywhere. All of them were found by looking at the
 artifact that should exist (the request, the file, the event in real Firefox)
