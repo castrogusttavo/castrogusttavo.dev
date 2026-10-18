@@ -336,8 +336,8 @@ outra pessoa alterou o mesmo campo." ("Part of the undo was skipped
 because someone else changed the same field.") A step left with nothing to
 apply leaves the history, as a removed-node step already did. Expectations
 are recomputed after every trip, so redo holds only what the undo actually
-undid. Before the fix, a two-client test interleaving edits failed 6 out of
-6 times; the binding also gained a randomized property test whose
+undid. Of the six new two-client tests interleaving edits, five failed before
+the fix; the binding also gained a randomized property test whose
 invariant is that an undo or redo only changes a field that still holds
 what that person left there.
 
