@@ -31,7 +31,7 @@ passa a ser a dos guard-rails. O resto do post é a evidência, tirada do
 no meu vault a cada sessão de trabalho com agente.
 
 O que eu delego ao agente cabe numa lista curta: criar commits e fazer
-merge de PR, análise profunda de performance, escrever e rodar testes,
+merge de PR, análise profunda de performance, realizar testes,
 construir componentes de frontend complexos ou animados, e revisar uma
 arquitetura que eu já decidi — essa última em sessões longas. A decisão de
 arquitetura em si continua comigo; o agente revisa, mede e executa.
@@ -170,8 +170,8 @@ pega, porque não são bugs de código: são colisões entre processos.
 | Uma worktree de validação em `/tmp` (tmpfs, em RAM) derrubou a máquina na primeira varredura. | Worktree em disco, fora de `/tmp`. |
 | Playwright com 1 worker: todos os specs compartilham a conta do worker e estouram o rate limit por usuário (429 na wiki). | Localmente, no mínimo `--workers=2`, como no CI. |
 
-A segunda linha é a que mais me incomoda, porque a regra já existia como
-julgamento. Em 9 de setembro, numa sessão noturna sem supervisão, o agente
+A segunda linha é a que mais me ensinou, mesmo sem ter custado nada, porque
+a regra já existia como julgamento. Em 9 de setembro, numa sessão noturna sem supervisão, o agente
 **se recusou** a rodar o e2e: o `.env` apontava para um banco sem sufixo
 `_test`, o setup faz `TRUNCATE ... CASCADE`, e ele preferiu entregar os
 testes verificados só por `tsc` e Biome, com o aviso de que precisavam
@@ -187,12 +187,11 @@ Na mesma família, fora da tabela porque não é colisão entre agentes: uma
 credencial colada num chat deve ser considerada queimada e rotacionada,
 não importa quem vá ler o chat depois.
 
-O custo do banco apagado foi médio: levou junto boa parte dos dados que
-eu usava em testes de carga locais. Mas o prejuízo maior foi o que ele
-revelou — não existiam arquivos de carga em lote para reconstruir aqueles
-dados. Se um banco local não pode ser recriado com um comando, ele não é
-descartável, e a regra "integração só contra banco descartável" pressupõe
-justamente isso.
+O banco apagado não chegou a ser um problema: o banco local ainda não
+tinha dado de cliente nenhum, então o custo foi nulo. A regra "integração só
+contra banco descartável" fica mesmo assim, porque o que ela corrige é o
+julgamento que acerta numa sessão e erra na outra, não o prejuízo daquele
+dia.
 
 ## A madrugada com autorização explícita
 
@@ -229,11 +228,11 @@ plano registra o desvio e o motivo. Uma das fases achou um vazamento real
 já em produção, por um teste de bypass escrito **antes** de remover o
 portão antigo.
 
-O que me deixou confortável em autorizar aquela madrugada não foi
-confiança no agente: foi que o SDD (*Spec Driven Development*) já estava
-inteiro escrito. O agente não estava decidindo o que construir, estava
-executando contra especificações que eu já tinha fechado — e contra um
-pipeline que recusa o que não passa.
+O que me deixou confortável em autorizar aquela madrugada foi que o SDD (*Spec Driven Development*) já estava inteiro escrito.
+
+O que eu não autorizaria um agente a fazer sozinho é testar o controle fino
+do visual da plataforma — é assim que eu evito aquele padrão horrível do
+frontend de IA.
 
 ## Onde esse argumento é fraco
 

@@ -31,7 +31,7 @@ repo is public) and from the session notes I keep in my vault for every
 agent work session.
 
 What I hand to the agent fits in a short list: creating commits and
-merging PRs, deep performance analysis, writing and running tests,
+merging PRs, deep performance analysis, carrying out tests,
 building complex or animated frontend components, and reviewing an
 architecture I've already decided — that last one in long sessions. The
 architecture decision itself stays with me; the agent reviews, measures
@@ -169,8 +169,8 @@ because they aren't code bugs: they're collisions between processes.
 | A validation worktree in `/tmp` (tmpfs, i.e. RAM) took the machine down on the first sweep. | Worktrees on disk, outside `/tmp`. |
 | Playwright with 1 worker: every spec shares the worker's account and blows the per-user rate limit (429 on the wiki). | Locally, at least `--workers=2`, like CI. |
 
-The second row bothers me most, because the rule already existed as
-judgment. On September 9, in an unsupervised overnight session, the agent
+The second row taught me the most, even though it cost nothing, because
+the rule already existed as judgment. On September 9, in an unsupervised overnight session, the agent
 **refused** to run e2e: `.env` pointed at a database with no `_test`
 suffix, the setup runs `TRUNCATE ... CASCADE`, and it chose to deliver tests
 checked only by `tsc` and Biome, with a warning to run them against a
@@ -186,11 +186,11 @@ Same family, outside the table because it isn't an agent collision: a
 credential pasted into a chat must be considered burned and rotated, no
 matter who reads the chat later.
 
-Losing the database cost me a medium amount: it took a good chunk of the
-data I used for local load tests with it. The bigger cost was what it
-exposed — there were no batch-load files to rebuild that data. A local
-database you can't recreate with one command isn't disposable, and "integration only
-against a disposable database" assumes exactly that.
+Losing the database wasn't actually a problem: the local database didn't
+have any customer data yet, so the cost was nil. The rule "integration only
+against a disposable database" stays anyway, because what it fixes is
+judgment that's right in one session and wrong in the next, not the damage
+from that day.
 
 ## The overnight run with explicit authorization
 
@@ -226,11 +226,10 @@ the plan itself records the deviation and why. One phase found a real leak
 already in production, through a bypass test written **before** removing
 the old gate.
 
-What made me comfortable authorizing that night wasn't trust in the agent:
-the SDD (Spec Driven Development) was already fully written. The agent
-wasn't deciding what to build; it was executing against specs I had
-already closed — and against a pipeline that refuses whatever doesn't
-pass.
+What made me comfortable authorizing that night was that the SDD (Spec Driven Development) was already fully written.
+
+What I wouldn't authorize an agent to do alone is test the fine control of
+the platform's visuals — that's how I avoid that awful AI-frontend look.
 
 ## Where this argument is weak
 
