@@ -290,6 +290,8 @@ What's still open:
   `removeOnFail`, any job that died before September 13 was already gone
   from Redis when I found the bug, and there was no alarm to have recorded
   the death. The same gap that hid the bug erased the evidence of its size.
+  At the time, the only accounts outside the load-test seed were mine: the
+  bug kept no one's data but my own. That was luck, not design.
 - **End-to-end validation in production is pending.** The migration ran
   in CD and the 30 FKs were checked in the database, but I haven't yet
   scheduled the deletion of a test account with content, let the job run

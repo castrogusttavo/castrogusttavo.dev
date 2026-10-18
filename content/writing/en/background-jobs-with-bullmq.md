@@ -92,6 +92,13 @@ be an error.
 > [`220ad51b`](https://github.com/castrogusttavo/nexo/commit/220ad51b054e34dfd4ddde040726034839ce703b),
 > and the story is in
 > [The account deletion that never deleted anyone](/en/writing/account-deletion-that-never-deleted).
+>
+> And there was a bigger defect in the same queue: until
+> [`94d044f`](https://github.com/castrogusttavo/nexo/commit/94d044f26d0b4e7f96d4e5684a4d0c9780e5acb9),
+> `delete-account` itself failed for any user who had created content (a
+> foreign key without `onDelete` made Postgres refuse), and the retry with
+> backoff described below only repeated the same failure three times, with
+> no alarm at all.
 
 The consumer doesn't run inside Next. It's its own Node process
 (`worker/index.ts`) that imports services and repositories directly — the
