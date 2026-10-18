@@ -232,16 +232,25 @@ quem não mandou o header, ela é o endereço real; pra quem mandou, é o que
 a pessoa escreveu. O banco não guarda a lista inteira, então não existe
 como separar um caso do outro depois. O consentimento em si (documento,
 versão, data, usuário) continua válido; o IP desses registros é uma
-alegação, não uma prova.
+alegação, não uma prova. Na prática, nenhum registro de terceiro foi
+afetado: fora as contas de seed do teste de carga, as únicas contas são
+minhas.
 
-**IPv6 é gravado como prefixo /64.** O `getIPFromHeader` do Better Auth
-normaliza IPv6 pra sub-rede /64 por padrão, porque foi pensado pra rate
-limit, onde agrupar por /64 é o certo. O `clientIp` não muda esse padrão,
-então um aceite feito por IPv6 grava algo como
+**O próprio fix gravou IPv6 como prefixo /64 por quase um dia.** O
+`getIPFromHeader` do Better Auth normaliza IPv6 pra sub-rede /64 por padrão
+(`ipv6Subnet: 64`), porque foi pensado pra rate limit, onde agrupar por /64
+é o certo. O `clientIp` que entrou com o `5fd075fa` herdou esse padrão, então
+de 17/10 às 23:50 UTC até o deploy do
+[`da4ba764`](https://github.com/castrogusttavo/nexo/commit/da4ba764), em 18/10 às 18:49 UTC,
+um aceite feito por IPv6 gravou algo como
 `2804:014c:005b:8000:0000:0000:0000:0000` — o prefixo da rede, não o
-endereço do dispositivo. Pra rate limit é desejável; pra registro de
-consentimento é menos preciso do que um leitor do campo esperaria. Não
-corrigi ainda.
+endereço do dispositivo. Pra rate limit era o certo; pra registro de
+consentimento era menos preciso do que um leitor do campo esperaria. O
+`da4ba764` separou os dois usos: os registros de consentimento e de
+candidatura a vaga guardam o IPv6 inteiro, os 128 bits, e o rate limit
+continua chaveando pelo /64, agora via `clientIpBucket`, porque um
+assinante costuma ter um /64 inteiro e trocar de endereço dentro dele não
+deveria zerar o limite.
 
 **As faixas da Cloudflare são uma lista estática.** Se a Cloudflare
 publicar uma faixa nova, conexões vindas dela não terão o endereço
@@ -276,5 +285,5 @@ a concordar.
 
 Não prova que os registros de consentimento anteriores a 17 de outubro
 têm IP confiável — não têm, e não tem como saber quais. E não prova que o
-IP gravado identifica uma pessoa: com NAT, CGNAT e o /64 do IPv6, ele
-identifica uma rede, e é só isso que um registro desses deveria alegar.
+IP gravado identifica uma pessoa: com NAT e CGNAT, ele identifica uma
+rede, e é só isso que um registro desses deveria alegar.
