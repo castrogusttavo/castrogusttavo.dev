@@ -293,10 +293,15 @@ What's still open:
   At the time, the only accounts outside the load-test seed were mine: the
   bug kept no one's data but my own. That was luck, not design.
 - **End-to-end validation in production is pending.** The migration ran
-  in CD and the 30 FKs were checked in the database, but I haven't yet
-  scheduled the deletion of a test account with content, let the job run
-  and checked the UI. The integration test proves the repository against
-  Postgres; it doesn't prove the whole path, with queue, worker and cache.
+  in CD and the 30 FKs were checked in the database, but there's no
+  record of an end-to-end deletion in production. To close that, I
+  scheduled one on purpose: my own secondary account, with
+  `deletion_scheduled_at` set to October 26, 2026 at 17:14 UTC and the
+  `delete-account` job waiting in BullMQ. It hasn't run yet. After
+  October 26 I'll check the outcome: the user gone from the database and
+  their content kept, attributed to "Usuário removido". The integration
+  test proves the repository against Postgres; it doesn't prove the whole
+  path, with queue, worker and cache.
 - **There's a narrow race I didn't close.** If the worker is already
   processing a user's deletion job, a concurrent reschedule is lost:
   `remove()` returns `0` because of the lock and the next `add()` is
@@ -317,7 +322,7 @@ just a migration: 43 files, mostly types and UI, and that cost is what
 forces each screen to handle "no author" instead of crashing.
 
 It doesn't prove deletion works end to end in production; that check
-hasn't been done yet. It doesn't prove no other Nexo job fails silently:
+is scheduled for October 26 and hasn't run yet. It doesn't prove no other Nexo job fails silently:
 only that, since September 22, when one dies for good, someone hears
 about it. And it can't say how many people asked to leave between May and
 September and stayed in the database, because the system that should
