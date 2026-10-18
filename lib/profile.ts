@@ -38,7 +38,7 @@ export const workExperience: WorkExperience[] = [
       en: "Backend Engineer & Founder",
     },
     company: "Nexo software, Inc.",
-    companyUrl: "https://nexo.coodee.dev",
+    companyUrl: "https://nexopm.com",
     period: "2026 — present",
     bullets: [
       {
@@ -73,7 +73,7 @@ export const workExperience: WorkExperience[] = [
       en: "Backend Engineer",
     },
     company: "Stratus Telecom",
-    companyUrl: "https://stratustelecom.com.br",
+    companyUrl: "https://app.stratustelecom.com.br",
     period: "2025 — present",
     bullets: [
       {
