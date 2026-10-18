@@ -255,7 +255,7 @@ contain it), and an Excalidraw block inserted from the slash menu renders
 with no CSP violation. The second is the regression test for `fc78ddc`, from
 the same day: Excalidraw's fonts came from `esm.sh`, the CSP only allows
 fonts from `'self'`, and the canvas silently fell back to other faces. The
-build now copies the installed package's 234 font files to our own origin.
+build now copies the installed package's 234 font files to Nexo's own origin.
 
 ## Where it broke: the remote cursor doesn't show up
 

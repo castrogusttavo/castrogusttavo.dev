@@ -257,7 +257,7 @@ Excalidraw inserido pelo menu de barra renderiza sem violação de CSP. Esse
 segundo é o teste de regressão do `fc78ddc`, do mesmo dia: as fontes do
 Excalidraw vinham do `esm.sh`, a CSP só aceita fonte de `'self'`, e o canvas
 caía em outra fonte sem avisar. Hoje o build copia os 234 arquivos de fonte do
-pacote instalado para a nossa origem.
+pacote instalado para a origem do próprio Nexo.
 
 ## Onde quebrou: o cursor remoto não aparece
 
