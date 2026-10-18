@@ -5,6 +5,13 @@ icon: bug
 date: "2026-08-29"
 ---
 
+> **Atualização (18/10/2026):** a seção sobre CSP deste post não reflete
+> a produção. Quando ele foi publicado, a imagem da Nexo rodava sem o
+> middleware que gera o header, e o `script-src` com nonce e
+> `strict-dynamic` descrito abaixo nunca chegou a servir. Hoje o
+> `script-src` é `'self' 'unsafe-inline'`. O que aconteceu, e por que, está
+> em [Meu post sobre CSP estava errado](/pt/writing/my-csp-post-was-wrong).
+
 Todo guia de segurança diz pra nunca usar `unsafe-inline` no CSP. A Nexo
 usa — em `style-src`, especificamente — e o comentário deixado no código
 explica exatamente por que essa é a exceção documentada, não um descuido:
