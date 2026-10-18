@@ -210,7 +210,18 @@ What I could check about that window:
   anyone;
 - nginx only keeps 14 days of logs, which no longer cover the window.
 
-> [FILL IN: Axiom search result]
+And Axiom, which keeps application logs longer than nginx, still covered
+the window. I searched it for two things: every `user.update` audit that
+touched `email`, and every request to `/admin`, `/api/admin` and
+`/api/auth/two-factor/`. Five e-mail change attempts showed up, plus
+hundreds of admin-route calls, almost all from `127.0.0.1`, in one-minute
+bursts that look like a test suite. Grouped by host, all **3,755** of
+those come from `localhost:3000`: my machine, running the e2e tests and
+that night's audit, which log into the same dataset as production. The
+five e-mail changes fall in the same minutes as those bursts. Outside
+them, what's left is my own 2FA activation at 21:12 on Sep 27, from my
+IP, and bots looking for `/admin.php`, `/adminer.php` and friends, paths
+that don't exist in a Next app.
 
 **The defect was written down, under the wrong name.** In my
 architecture notes, since May, there was a pending-review item: "today
@@ -253,9 +264,12 @@ and requires a 403, and that the fix reached production the same night
 the problem was reproduced. It proves a correct authorization gate isn't
 enough when the data it reads is writable through another endpoint.
 
-It doesn't prove, on its own, that nobody used the production window:
-what I have is the evidence listed above, and the nginx logs no longer
-cover that period. It doesn't prove there's no other sensitive field being
+It doesn't prove with absolute certainty that nobody used the window:
+Axiom shows the admin-route traffic in those 31 hours was mine or bots',
+but only requests that reach the application get logged, and the nginx
+logs have expired. And the search was only this laborious because my
+machine logs into the same dataset as production, an observability
+defect this investigation put in plain sight. It doesn't prove there's no other sensitive field being
 mass-assigned in the other 10 services. And it doesn't prove an e-mail
 allowlist is safe: only that, today, I know of no other way to write an
 account's e-mail.

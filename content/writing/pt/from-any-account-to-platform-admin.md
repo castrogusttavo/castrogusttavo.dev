@@ -212,7 +212,18 @@ O que consegui verificar sobre essa janela:
   ninguém;
 - os logs do nginx guardam só 14 dias e já não cobrem a janela.
 
-> [PREENCHER: resultado da busca no Axiom]
+E o Axiom, que guarda os logs da aplicação por mais tempo que o nginx,
+ainda cobria a janela. Busquei duas coisas nela: toda auditoria de
+`user.update` que mexeu em `email`, e toda requisição a `/admin`,
+`/api/admin` e `/api/auth/two-factor/`. Apareceram cinco tentativas de
+trocar e-mail e centenas de chamadas às rotas de admin, quase todas
+vindas de `127.0.0.1`, em rajadas de um minuto com cara de suíte de
+teste. Agrupando essas por host, as **3.755** são de `localhost:3000`: a
+minha máquina, rodando os testes e2e e a auditoria daquela noite, que
+logam no mesmo dataset da produção. As cinco trocas de e-mail caem nos
+mesmos minutos dessas rajadas. Fora delas, sobram a ativação da minha 2FA
+às 21:12 de 27/09, vinda do meu IP, e robôs atrás de `/admin.php`,
+`/adminer.php` e parentes, caminhos que não existem num app Next.
 
 **O defeito estava anotado, com o nome errado.** Nas minhas notas de
 arquitetura, desde maio, havia um item de revisão pendente: "hoje
@@ -255,9 +266,12 @@ em que o problema foi reproduzido. Prova que um portão de autorização
 correto não basta quando o dado que ele lê é gravável por outro
 endpoint.
 
-Não prova, por si só, que ninguém usou a janela em produção: o que
-tenho são as evidências listadas acima, e os logs do nginx já não cobrem
-o período. Não prova que não há outro campo sensível sendo gravado
+Não prova com certeza absoluta que ninguém usou a janela: o Axiom mostra
+que o tráfego às rotas de admin naquelas 31 horas era meu ou de robôs, mas
+só as requisições que chegam à aplicação viram log, e os do nginx já
+expiraram. E a busca só foi tão trabalhosa porque a minha máquina loga no
+mesmo dataset da produção, um defeito de observabilidade que essa
+investigação deixou à vista. Não prova que não há outro campo sensível sendo gravado
 por mass assignment nos outros 10 services. E não prova que a allowlist
 por e-mail é segura: prova só que, hoje, não conheço outro jeito de
 escrever o e-mail de uma conta.
