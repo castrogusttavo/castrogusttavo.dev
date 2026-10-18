@@ -281,8 +281,8 @@ estava tocando. Ele só não bloqueava nada: é um workflow agendado, fora
 do portão do deploy, e eu publiquei o post sem conferir o resultado dele.
 Quando escrevi que os headers eram "verificados toda semana", era
 verdade no sentido mais inútil possível. Desde a troca pra `nexopm.com`,
-em 19 de setembro, e o deploy da correção, as quatro execuções semanais
-passaram.
+em 19 de setembro, e o deploy da correção, todas as execuções semanais
+desde então passaram.
 
 A causa raiz dos dois erros é a mesma: eu confiei numa leitura do
 código pra afirmar algo sobre o que estava rodando. O teste de contrato
