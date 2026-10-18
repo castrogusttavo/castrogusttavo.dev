@@ -203,8 +203,8 @@ Cloudflare broke that subtly. It appends to `X-Forwarded-For` too, so the
 header arrived as `<VU IP>, <runner IP>`. The resolver, correctly, took the
 rightmost entry — the runner — and every VU was back to sharing a bucket.
 The fix was for that test path's nginx map to pass along only the first
-value. That map lives on the server, not in the repository; the change is
-in my notes.
+value. That map is versioned now, in `infra/nginx/nexo-ratelimit.conf`
+([`fa3d1878`](https://github.com/castrogusttavo/nexo/commit/fa3d1878)).
 
 ## Results
 
@@ -250,10 +250,10 @@ range, connections from it won't have their address restored and will show
 up as a Cloudflare IP until someone updates the file in the repository and
 on the server. Nothing automates that.
 
-**Only part of production's nginx is versioned.** The real-IP file is in
-the repository; `X-Real-IP` set from `$remote_addr` and the load-test map
-aren't. The two out-of-code changes in this post rely on my having written
-down what I did on the server. And the `TRUSTED_PROXIES` comment in the
+**Only part of production's nginx is versioned.** The real-IP file, the
+upstream, gzip and the rate limit, load-test map included, are in the
+repository; the vhost that sets `X-Real-IP` from `$remote_addr` isn't. That
+change relies on my having written down what I did on the server. And the `TRUSTED_PROXIES` comment in the
 code still suggests listing a CDN's ranges there "if one ever sits in
 front" — exactly the path I didn't take.
 

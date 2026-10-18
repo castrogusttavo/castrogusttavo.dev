@@ -208,8 +208,8 @@ A Cloudflare quebrou isso de um jeito sutil. Ela também acrescenta ao
 runner>`. O resolvedor, corretamente, pegava a entrada da direita — o
 runner — e todos os VUs voltavam a dividir um bucket. A correção foi o
 mapa do nginx desse caminho de teste passar adiante só o primeiro valor.
-Esse mapa vive no servidor, não no repositório; a mudança está nas minhas
-notas.
+Esse mapa hoje está versionado, em `infra/nginx/nexo-ratelimit.conf`
+([`fa3d1878`](https://github.com/castrogusttavo/nexo/commit/fa3d1878)).
 
 ## Resultados
 
@@ -257,10 +257,10 @@ publicar uma faixa nova, conexões vindas dela não terão o endereço
 restaurado e vão aparecer como IP da Cloudflare até alguém atualizar o
 arquivo no repositório e no servidor. Não tem nada automatizando isso.
 
-**Só parte do nginx de produção está versionada.** O arquivo de real IP
-está no repositório; o `X-Real-IP` com `$remote_addr` e o mapa do teste
-de carga, não. As duas mudanças que este post descreve fora do código
-dependem de eu ter anotado o que fiz no servidor. E o comentário de
+**Só parte do nginx de produção está versionada.** O arquivo de real IP,
+o upstream, o gzip e o rate limit, com o mapa do teste de carga, estão no
+repositório; o vhost que define o `X-Real-IP` com `$remote_addr`, não.
+Essa mudança depende de eu ter anotado o que fiz no servidor. E o comentário de
 `TRUSTED_PROXIES` no código ainda sugere listar as faixas de uma CDN ali
 "se uma ficar na frente" — exatamente o caminho que eu não segui.
 
