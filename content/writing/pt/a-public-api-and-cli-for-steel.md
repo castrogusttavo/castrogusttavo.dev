@@ -284,17 +284,23 @@ O que é contável hoje:
 | Eventos para fora | só avisos no Slack | 18 tipos assináveis, entrega com 6 tentativas e log |
 | Cliente tipado | nenhum | `@steel-so/sdk`, gerado do documento |
 
-No `steel-cli`, a suíte tem **31 arquivos e 371 testes**, rodando em Node
-22 e 24 no CI, com cobertura de **98,8%** de statements, **94,54%** de
-branches, **98,4%** de funções e **99,5%** de linhas, contra limites de
-95/90/95/95 que derrubam o build. No app, as fatias de tokens, v1 e
-webhooks têm **39 arquivos de teste** dedicados, incluindo e2e contra o
-Postgres do fluxo de dispositivo, da v1 e das rotas de webhook.
+No `steel-cli`, na 0.1.1, a suíte tem **33 arquivos e 393 testes** — os
+dois arquivos novos são o teste de contrato e o verificador de
+compatibilidade, descritos abaixo —, rodando em Node 22 e 24 no CI, com
+cobertura de **98,88%** de statements, **94,92%** de branches, **98,46%** de
+funções e **99,54%** de linhas, contra limites de 95/90/95/95 que derrubam o
+build (números do job "Verify the tag" do release da 0.1.1). No app, as
+fatias de tokens, v1 e webhooks têm **39 arquivos de teste** dedicados,
+incluindo e2e contra o Postgres do fluxo de dispositivo, da v1 e das rotas
+de webhook.
 
 A v0.1.0 saiu em 18/10 com binários para `linux-x64`, `linux-arm64`,
 `darwin-x64`, `darwin-arm64` e `windows-x64`, `SHA256SUMS`, atestação de
-proveniência do GitHub Actions, os dois pacotes no npm e uma fórmula no tap
-`steel-so/homebrew-tap`. A API, os webhooks e o CLI foram testados de ponta
+proveniência do GitHub Actions nos binários, os dois pacotes no npm e uma
+fórmula no tap `steel-so/homebrew-tap`. A
+[0.1.1](https://github.com/steel-so/steel-cli/releases) saiu no mesmo dia,
+nas mesmas cinco plataformas, com as correções da seção seguinte.
+A API, os webhooks e o CLI foram testados de ponta
 a ponta por mim e por duas empresas clientes, com workspace e assinatura.
 Não tenho números de uso — quantos tokens existem, quantas entregas falham.
 
@@ -308,17 +314,33 @@ o primeiro documento de máquina nasceu do código, 33 minutos depois do
 contrato, e não do contrato. Um contrato em OpenAPI desde o início teria
 fixado os nomes; um contrato em Markdown fixou a intenção.
 
-**O CI do SDK compara o SDK com ele mesmo.** `generate:check` garante que
-o código gerado bate com o snapshot commitado no `steel-cli` — não que o
-snapshot bate com o app. Os dois já se afastaram: depois do snapshot, o
-commit `21fd34b8` do app trocou "Ajustes" por "Configurações" no caminho de
-menu das descrições do `openapi.v1.json`, e o snapshot do SDK ainda diz
-"Ajustes". É só texto, mas é a prova de que nada avisa. A ADR 0034 promete
-"um teste de contrato contra a homologação a cada release"; o passo de
-smoke do release roda o binário offline (`--version`, `profile list`, e
-`steel mcp` sem token tem que sair com código 3) e não fala com nenhum
-servidor. A causa raiz é estrutural: dois repositórios, e nenhum gatilho
-de um para o outro.
+**O CI do SDK comparava o SDK com ele mesmo — corrigido na 0.1.1.**
+`generate:check` garante que o código gerado bate com o snapshot commitado
+no `steel-cli`, não que o snapshot bate com o app. Os dois chegaram a se
+afastar: depois do snapshot, o commit `21fd34b8` do app trocou "Ajustes"
+por "Configurações" no caminho de menu das descrições do
+`openapi.v1.json`, e o snapshot do SDK continuou dizendo "Ajustes" sem que
+nada avisasse. A ADR 0034 prometia "um teste de contrato contra a
+homologação a cada release", mas o smoke do release rodava o binário
+offline (`--version`, `profile list`, e `steel mcp` sem token tem que sair
+com código 3) e não falava com nenhum servidor.
+
+Na 0.1.1, o snapshot foi atualizado (`25ca7f7`): os tipos gerados saíram
+idênticos, só as descrições mudaram, e agora dizem "Configurações ›
+Segurança" — o README do CLI também. E o release ganhou o teste de
+contrato que a ADR prometia: antes de publicar qualquer coisa, compara a
+API v1 publicada na homologação com o snapshot do SDK, usando uma cópia do
+verificador do app (`scripts/lib/openapi-compat.ts`, portado de
+`src/openapi/v1/compat.ts`), e falha em qualquer mudança incompatível. Com
+um token só de leitura, roda também `whoami`, o catálogo do ServiceDesk e
+os funis do CRM com o CLI de verdade; se o token tiver `api:write`, o
+release falha de propósito. No release da 0.1.1 ele rodou e passou.
+
+O que sobra da causa raiz: o gatilho continua sendo o release do
+`steel-cli`, não o deploy do app — entre dois releases, ninguém compara os
+dois (o check de compatibilidade do próprio app no CI é o que segura a v1
+nesse intervalo). E o verificador olha forma, não texto: uma descrição
+desatualizada como a de "Ajustes" passaria de novo sem aviso.
 
 **A v1 é um recorte, e o CLI só alcança o recorte.** 29 operações contra
 1.125. A aba de Comunicação do painel mostra só templates aprovados,
@@ -332,16 +354,19 @@ CLI diz que a URL "ainda será definida", e o `servers` do
 `openapi.v1.json` lista só homologação e desenvolvimento local. O
 contrato é público; o ambiente definitivo, não ainda.
 
-**A v0.1.0 saiu com dois defeitos.** O primeiro: um 401 ou 403 com código
-específico (`API_TOKEN_SCOPE_REQUIRED`, módulo desligado, token vencido)
-caía no ramo genérico e saía com código 1, embora o README prometa 3 para
-falha de autenticação e permissão. O commit `78f034b` corrigiu mapeando
-pelo status HTTP primeiro — depois da tag, então os binários da v0.1.0
-ainda têm o defeito. O segundo: o README diz que o pacote npm sai com
-`--provenance`, mas a 0.1.0 foi publicada à mão, sem atestação, porque o
-2FA da conta npm passou a barrar o token do CI. O commit `5307225` trocou a
-publicação para trusted publishing via OIDC, que vale da próxima versão em
-diante.
+**A v0.1.0 saiu com dois defeitos — corrigidos na 0.1.1.** O primeiro: um
+401 ou 403 com código específico (`API_TOKEN_SCOPE_REQUIRED`, módulo
+desligado, token vencido) caía no ramo genérico e saía com código 1,
+embora o README prometa 3 para falha de autenticação e permissão. O commit
+`78f034b` passou a mapear pelo status HTTP primeiro: na 0.1.1, todo 401 e
+403 sai com código 3. Os binários da 0.1.0 ainda têm o defeito. O segundo:
+o README dizia que o pacote npm sai com `--provenance`, mas a 0.1.0 foi
+publicada à mão, sem atestação, porque o 2FA da conta npm passou a barrar
+o token do CI. O commit `5307225` trocou a publicação para trusted
+publishing via OIDC, e a 0.1.1 foi a primeira a sair assim: publicada pelo
+GitHub Actions, com atestação de proveniência que o `npm audit signatures`
+confere. Os pacotes não aceitam mais publicação por token, e o README agora
+diz que a 0.1.0 foi publicada à mão.
 
 **O `listen` verifica com outro segredo.** O segredo da escuta é derivado
 do segredo do servidor por membro e workspace, não é o `whsec_` do
@@ -359,7 +384,8 @@ provisório pelo real uma mudança de nomes, não de comportamento. Prova
 também que proibir o CLI de usar rota interna transforma o primeiro
 cliente da API num teste contínuo do recorte público.
 
-Não prova que o contrato se mantém sozinho: hoje, entre o app e o SDK,
-nada impede o snapshot de envelhecer. Não prova que 29 operações bastam
+Não prova que o contrato se mantém sozinho: desde a 0.1.1, um release do
+CLI não sai contra uma v1 incompatível, mas entre dois releases nada
+compara o app com o SDK, e texto desatualizado continua passando. Não prova que 29 operações bastam
 para quem integra. Não diz nada sobre volume — nem de chamadas, nem de
 entregas de webhook — porque esses números ainda não existem.
