@@ -8,8 +8,9 @@ date: "2026-09-20"
 A Nexo tem 1.255 commits. **936 deles** — 75% — trazem um trailer
 `Co-Authored-By: Claude` na mensagem. O primeiro é de 8 de fevereiro; o
 mais recente é de hoje. Nesses oito meses e meio a arquitetura passou de "um
-Next.js falando com um Postgres" pra três containers, um pooler, uma
-réplica de leitura, oito camadas de teste e um pipeline com treze jobs.
+Next.js falando com um Postgres" pra três containers, um pooler e uma
+réplica de leitura no desenho (em produção, os dois chegaram uma semana
+depois), oito camadas de teste e um pipeline com treze jobs.
 
 Este post é o mapa. Três diagramas — arquitetura global, dado e backup,
 CI/CD — e, em cada um, a mesma disciplina: separar o que roda em produção
@@ -94,11 +95,7 @@ funciona de dentro da própria rede.
 
 ## O banco: um pooler e uma réplica que nasceram de um teste de carga
 
-> **Correção (24/11/2026):** esta seção e a seguinte descreveram o compose de
-> desenvolvimento como se fosse o de produção. Em 20/09, produção rodava o
-> Postgres sozinho e o Redis em `bitnami/redis:latest`; a réplica e o
-> PgBouncer só chegaram lá em 26 e 28/09. A história está em
-> [O dia em que o MinIO sumiu](/pt/writing/when-minio-disappeared).
+> **Correção (24/11/2026):** esta seção descreveu o compose de desenvolvimento como se fosse o de produção. Em 20/09, produção rodava o Postgres sozinho, o Redis em `bitnami/redis:latest` (ainda roda) e o MinIO em `minio/minio:RELEASE.2025-02-28`, do Docker Hub; o `quay.io` só valia para desenvolvimento e CI. A réplica e o PgBouncer chegaram à produção em 26/09, e a aplicação passou pelo pooler em 28/09.
 
 O Postgres não está sozinho há algumas semanas. Na frente dele tem um
 PgBouncer em modo de transação (`MAX_CLIENT_CONN: 200`,

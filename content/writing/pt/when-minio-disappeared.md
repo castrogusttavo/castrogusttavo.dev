@@ -212,12 +212,14 @@ local se falhar, em vez de deixar uma falsa segurança no bucket. Esses
 números vêm do log da execução no servidor; o script não está versionado,
 então não dá pra conferir isso no repositório.
 
-O que a execução também deixou claro foi um risco que não tem nada a ver
-com MinIO: a chave do remote cifrado do rclone ficava guardada num único
-lugar. Sem ela, nenhum backup remoto pode ser restaurado por ninguém —
-inclusive por mim. Um backup cuja chave morre junto com o servidor não
-protege contra o servidor morrer, que é o único cenário em que ele
-importa.
+A execução também me fez olhar pra um risco que não tem nada a ver com
+MinIO: a chave do remote cifrado do rclone. Sem ela, nenhum backup remoto
+pode ser restaurado por ninguém — inclusive por mim —, e um backup cuja
+chave morre junto com o servidor não protege contra o servidor morrer, que
+é o único cenário em que ele importa. A chave não mora só no servidor: as
+duas variáveis, `B2_CRYPT_PASS` e `B2_CRYPT_SALT`, estão guardadas também
+em duas contas do Bitwarden. E eu testei o caminho que importa: um restore
+feito de outra máquina, usando essa cópia, funcionou.
 
 ## Resultados
 

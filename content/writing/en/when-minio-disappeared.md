@@ -201,11 +201,14 @@ instead of leaving false confidence in the bucket. Those numbers come from
 the run's log on the server; the script isn't versioned, so you can't
 check them in the repo.
 
-The run also surfaced a risk that has nothing to do with MinIO: the key to
-rclone's encrypted remote was stored in exactly one place. Without it, no
-remote backup can be restored by anyone — me included. A backup whose key
-dies with the server doesn't protect against the server dying, which is
-the only scenario where it matters.
+The run also made me look at a risk that has nothing to do with MinIO: the
+key to rclone's encrypted remote. Without it, no remote backup can be
+restored by anyone — me included — and a backup whose key dies with the
+server doesn't protect against the server dying, which is the only
+scenario where it matters. The key doesn't live only on the server: both
+variables, `B2_CRYPT_PASS` and `B2_CRYPT_SALT`, are also stored in two
+Bitwarden accounts. And I tested the path that counts: a restore from
+another machine, using that copy, worked.
 
 ## Results
 

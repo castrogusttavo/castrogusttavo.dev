@@ -9,7 +9,8 @@ Nexo has 1,255 commits. **936 of them** — 75% — carry a
 `Co-Authored-By: Claude` trailer in the message. The first is from February
 8th; the most recent is from today. Over those eight and a half months the
 architecture went from "a Next.js talking to a Postgres" to three
-containers, a pooler, a read replica, eight test layers and a pipeline with
+containers, a pooler and a read replica in the drawing (in production,
+both arrived a week later), eight test layers and a pipeline with
 thirteen jobs.
 
 This post is the map. Three diagrams — global architecture, data and
@@ -94,11 +95,7 @@ work from inside the network.
 
 ## The database: a pooler and a replica born from a load test
 
-> **Correction (Nov 24, 2026):** this section and the next one described the
-> development compose as if it were production's. On Sep 20, production ran
-> Postgres alone and Redis on `bitnami/redis:latest`; the replica and
-> PgBouncer only got there on Sep 26 and 28. The story is in
-> [The day MinIO disappeared](/en/writing/when-minio-disappeared).
+> **Correction (Nov 24, 2026):** this section described the development compose as if it were production's. On Sep 20, production ran Postgres alone, Redis on `bitnami/redis:latest` (it still does) and MinIO on `minio/minio:RELEASE.2025-02-28`, from Docker Hub; `quay.io` only applied to development and CI. The replica and PgBouncer reached production on Sep 26, and the app started going through the pooler on Sep 28.
 
 Postgres hasn't been alone for a few weeks now. In front of it sits a
 PgBouncer in transaction mode (`MAX_CLIENT_CONN: 200`,
