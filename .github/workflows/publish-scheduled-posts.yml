@@ -1,0 +1,72 @@
+# Merges each scheduled post's PR on its publish date; Vercel deploys the
+# merge like any other push to main. A PR opts in with the `scheduled` label
+# and a `Publish-Date: YYYY-MM-DD` line in its body. Drafts, and PRs whose
+# posts still carry a fill-in placeholder, are skipped and reported.
+name: Publish scheduled posts
+
+on:
+  schedule:
+    - cron: "0 12 * * *" # 09:00 in São Paulo
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: publish-scheduled-posts
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge the PRs whose date has come
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          today=$(TZ=America/Sao_Paulo date +%F)
+          echo "Today in São Paulo: $today"
+
+          prs=$(gh pr list --label scheduled --state open --limit 100 \
+            --json number,isDraft,body,title \
+            --jq '.[] | @base64')
+
+          failed=0
+          for row in $prs; do
+            pr() { echo "$row" | base64 -d | jq -r "$1"; }
+            number=$(pr .number)
+            title=$(pr .title)
+            date=$(pr .body | grep -oP '^Publish-Date:\s*\K\d{4}-\d{2}-\d{2}' | head -1 || true)
+
+            if [ -z "$date" ]; then
+              echo "::warning::#$number has the label but no Publish-Date line"
+              continue
+            fi
+            if [[ "$date" > "$today" ]]; then
+              echo "#$number waits for $date: $title"
+              continue
+            fi
+            if [ "$(pr .isDraft)" = "true" ]; then
+              echo "::warning::#$number was due $date but is still a draft"
+              failed=1
+              continue
+            fi
+
+            placeholders=$(gh pr diff "$number" | grep -E '^\+.*\[(PREENCHER|FILL IN)' || true)
+            if [ -n "$placeholders" ]; then
+              echo "::error::#$number was due $date but still has placeholders"
+              echo "$placeholders"
+              failed=1
+              continue
+            fi
+
+            echo "Merging #$number (due $date): $title"
+            if ! gh pr merge "$number" --rebase --delete-branch; then
+              echo "::error::#$number could not be merged"
+              failed=1
+            fi
+          done
+
+          exit $failed
