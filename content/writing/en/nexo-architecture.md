@@ -95,7 +95,7 @@ work from inside the network.
 
 ## The database: a pooler and a replica born from a load test
 
-> **Correction (Nov 24, 2026):** this section described the development compose as if it were production's. On Sep 20, production ran Postgres alone, Redis on `bitnami/redis:latest` (it still does) and MinIO on `minio/minio:RELEASE.2025-02-28`, from Docker Hub; `quay.io` only applied to development and CI. The replica and PgBouncer reached production on Sep 26, and the app started going through the pooler on Sep 28.
+> **Correction (Nov 24, 2026):** this section described the development compose as if it were production's. On Sep 20, production ran Postgres alone, Redis on `bitnami/redis:latest` (it still does) and MinIO on `minio/minio:RELEASE.2025-02-28`, from Docker Hub; `quay.io` only applied to development and CI. The replica and PgBouncer reached production on Sep 26, and the app started going through the pooler on Sep 28. The story is in [The day MinIO disappeared](/en/writing/when-minio-disappeared).
 
 Postgres hasn't been alone for a few weeks now. In front of it sits a
 PgBouncer in transaction mode (`MAX_CLIENT_CONN: 200`,

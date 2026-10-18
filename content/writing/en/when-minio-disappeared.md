@@ -205,9 +205,8 @@ The run also made me look at a risk that has nothing to do with MinIO: the
 key to rclone's encrypted remote. Without it, no remote backup can be
 restored by anyone — me included — and a backup whose key dies with the
 server doesn't protect against the server dying, which is the only
-scenario where it matters. The key doesn't live only on the server: both
-variables, `B2_CRYPT_PASS` and `B2_CRYPT_SALT`, are also stored in two
-Bitwarden accounts. And I tested the path that counts: a restore from
+scenario where it matters. The key doesn't live only on the server: the
+cipher's password and salt are also stored in two Bitwarden accounts. And I tested the path that counts: a restore from
 another machine, using that copy, worked.
 
 ## Results
