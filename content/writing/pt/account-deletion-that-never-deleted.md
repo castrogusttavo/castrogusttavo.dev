@@ -302,9 +302,13 @@ O que continua sem resposta:
   as únicas contas fora do seed de carga eram minhas: o bug não reteve
   dado de ninguém além de mim. Isso foi sorte, não projeto.
 - **A validação ponta a ponta em produção está pendente.** A migration
-  rodou no CD e as 30 FKs foram conferidas no banco, mas
-  ainda não agendei a exclusão de uma conta de teste com conteúdo,
-  esperei o job rodar e conferi na interface. O teste de integração
+  rodou no CD e as 30 FKs foram conferidas no banco, mas não existe
+  registro de uma exclusão de ponta a ponta em produção. Para fechar
+  isso, agendei uma de propósito: a minha conta secundária, com
+  `deletion_scheduled_at` em 26/10/2026 às 17:14 UTC e o job
+  `delete-account` esperando na fila do BullMQ. Ainda não rodou. Depois
+  de 26/10 confiro o resultado: o usuário fora do banco e o conteúdo
+  dele mantido, assinado como "Usuário removido". O teste de integração
   prova o repository contra Postgres; não prova o caminho inteiro, com
   fila, worker e cache.
 - **Existe uma corrida estreita que não fechei.** Se o worker já está
@@ -329,7 +333,7 @@ tipo e interface, e esse custo é o que obriga cada tela a tratar "sem
 autor" em vez de quebrar.
 
 Não prova que a exclusão funciona ponta a ponta em produção; essa
-verificação ainda não foi feita. Não prova que nenhum outro job da Nexo
+verificação está agendada para 26/10 e ainda não foi feita. Não prova que nenhum outro job da Nexo
 falha calado: prova só que, desde 22/09, quando um falhar de vez, alguém
 fica sabendo. E não diz quantas pessoas pediram para sair entre maio e
 setembro e continuaram no banco, porque o sistema que deveria guardar
